@@ -71,9 +71,20 @@ class EpsteinWrapped {
         document.getElementById('shareBtn')?.addEventListener('click', () => this.share());
         document.getElementById('restartBtn')?.addEventListener('click', () => this.restart());
         
-        // First interaction starts audio
-        document.addEventListener('click', () => this.startAudioOnFirstInteraction(), { once: true });
-        document.addEventListener('touchstart', () => this.startAudioOnFirstInteraction(), { once: true });
+        // Play Music button
+        const playBtn = document.getElementById('playMusicBtn');
+        if (playBtn) {
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.startAudioOnFirstInteraction();
+                playBtn.textContent = '🎵 PLAYING...';
+                playBtn.style.background = '#1a1a1a';
+                playBtn.style.color = '#1DB954';
+                setTimeout(() => {
+                    playBtn.textContent = '✓ MUSIC ON';
+                }, 500);
+            });
+        }
     }
     
     setupKeyboard() {
@@ -128,33 +139,45 @@ class EpsteinWrapped {
     playMusic() {
         if (!this.audioContext || !this.isPlaying) return;
         
-        // Happy ukulele-style melody - ironically upbeat
-        const bpm = 120;
+        // GOOFY CIRCUS/KIDS SHOW MUSIC - ironically cheerful
+        const bpm = 140; // Faster = goofier
         const beatLength = 60 / bpm;
         
-        // Major key, happy progression (C - G - Am - F)
+        // Major key, super happy progression
         const chordProgression = [
-            { notes: [261.63, 329.63, 392.00], duration: 2 }, // C major
-            { notes: [196.00, 246.94, 293.66], duration: 2 }, // G major
-            { notes: [220.00, 261.63, 329.63], duration: 2 }, // A minor
-            { notes: [174.61, 220.00, 261.63], duration: 2 }, // F major
+            { notes: [261.63, 329.63, 392.00], duration: 1 }, // C major
+            { notes: [293.66, 369.99, 440.00], duration: 1 }, // D major
+            { notes: [329.63, 415.30, 493.88], duration: 1 }, // E major
+            { notes: [349.23, 440.00, 523.25], duration: 1 }, // F major
+            { notes: [392.00, 493.88, 587.33], duration: 1 }, // G major
+            { notes: [261.63, 329.63, 392.00], duration: 1 }, // C major
+            { notes: [196.00, 246.94, 293.66], duration: 1 }, // G major (lower)
+            { notes: [261.63, 329.63, 392.00], duration: 1 }, // C major
         ];
         
-        // Melody notes (happy, bouncy)
+        // Goofy bouncy melody - like a kids TV show intro
         const melody = [
-            { freq: 523.25, dur: 0.25 }, // C5
-            { freq: 587.33, dur: 0.25 }, // D5
-            { freq: 659.25, dur: 0.5 },  // E5
-            { freq: 523.25, dur: 0.25 }, // C5
-            { freq: 659.25, dur: 0.5 },  // E5
-            { freq: 784.00, dur: 0.5 },  // G5
-            { freq: 659.25, dur: 0.25 }, // E5
-            { freq: 587.33, dur: 0.25 }, // D5
-            { freq: 523.25, dur: 0.5 },  // C5
-            { freq: 392.00, dur: 0.25 }, // G4
-            { freq: 440.00, dur: 0.25 }, // A4
-            { freq: 493.88, dur: 0.5 },  // B4
-            { freq: 523.25, dur: 1.0 },  // C5
+            { freq: 523.25, dur: 0.125 }, // C5 (quick)
+            { freq: 587.33, dur: 0.125 }, // D5
+            { freq: 659.25, dur: 0.125 }, // E5
+            { freq: 784.00, dur: 0.25 },  // G5 (hold)
+            { freq: 880.00, dur: 0.125 }, // A5
+            { freq: 784.00, dur: 0.125 }, // G5
+            { freq: 659.25, dur: 0.25 },  // E5
+            { freq: 523.25, dur: 0.125 }, // C5
+            { freq: 587.33, dur: 0.125 }, // D5
+            { freq: 659.25, dur: 0.375 }, // E5 (longer)
+            { freq: 523.25, dur: 0.125 }, // C5
+            { freq: 392.00, dur: 0.125 }, // G4
+            { freq: 440.00, dur: 0.125 }, // A4
+            { freq: 523.25, dur: 0.125 }, // C5
+            { freq: 659.25, dur: 0.125 }, // E5
+            { freq: 784.00, dur: 0.125 }, // G5
+            { freq: 1046.50, dur: 0.5 },  // C6 (high finish!)
+            { freq: 880.00, dur: 0.125 }, // A5
+            { freq: 784.00, dur: 0.125 }, // G5
+            { freq: 659.25, dur: 0.25 },  // E5
+            { freq: 523.25, dur: 0.5 },   // C5 (rest on tonic)
         ];
         
         let time = this.audioContext.currentTime;

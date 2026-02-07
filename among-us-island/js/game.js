@@ -1,4 +1,4 @@
-// Main Game Class
+// Main Game Class - Enhanced with Demo Mode and Visual Polish
 
 class AmongUsGame {
     constructor() {
@@ -25,6 +25,7 @@ class AmongUsGame {
         this.completedTasks = 0;
         this.sabotageActive = null;
         this.sabotageTimer = 0;
+        this.demoMode = false;
         
         // Cooldowns
         this.lastKillTime = 0;
@@ -42,20 +43,34 @@ class AmongUsGame {
         // Input
         this.keys = {};
         this.joystick = { active: false, dx: 0, dy: 0 };
+        
+        // Animation
+        this.animationFrame = 0;
+        this.playerSprites = new Map();
+        
+        // Graphics layers
+        this.decorationGraphics = null;
+        this.atmosphereGraphics = null;
     }
     
     init(config) {
         this.playerCount = config.playerCount || 8;
         this.impostorCount = config.impostorCount || 2;
         this.playerName = config.playerName || 'Guest';
+        this.demoMode = config.demoMode || false;
         
         this.walkableGrid = createWalkableGrid();
+        
+        // Initialize music
+        if (typeof musicManager !== 'undefined') {
+            musicManager.init();
+        }
         
         // Initialize Phaser
         const gameConfig = {
             type: Phaser.AUTO,
-            width: Math.min(1200, window.innerWidth),
-            height: Math.min(800, window.innerHeight),
+            width: Math.min(1400, window.innerWidth),
+            height: Math.min(900, window.innerHeight),
             parent: 'game-container',
             backgroundColor: MAP_CONFIG.backgroundColor,
             scene: {
@@ -96,209 +111,337 @@ class AmongUsGame {
         this.aiController = new AIController(this);
         this.aiController.initialize(this.players.filter(p => !p.isPlayer));
         
+        // Setup demo mode if enabled
+        if (this.demoMode) {
+            this.aiController.setDemoMode(true);
+            // Initialize state for player in demo mode
+            this.aiController.initialize([this.localPlayer]);
+        }
+        
         // Setup UI
         this.setupUI();
         
         // Start game
         this.startGame();
+        
+        // Start music
+        if (typeof musicManager !== 'undefined') {
+            musicManager.start();
+        }
     }
     
     createMap() {
         const graphics = this.scene.add.graphics();
         
-        // Draw deep ocean background
-        graphics.fillStyle(0x0d3b66, 1);
-        graphics.fillRect(-500, -500, MAP_CONFIG.width + 1000, MAP_CONFIG.height + 1000);
+        // Draw deep ocean background with animated waves
+        this.drawOcean(graphics);
         
-        // Draw ocean waves/lighter areas
-        graphics.fillStyle(0x1a5276, 0.6);
-        for (let i = 0; i < 20; i++) {
-            const x = Math.random() * MAP_CONFIG.width;
-            const y = Math.random() * MAP_CONFIG.height;
-            graphics.fillEllipse(x, y, 100 + Math.random() * 150, 40 + Math.random() * 60);
-        }
-        
-        // Draw island shape (rough ellipse) - darker green base
-        graphics.fillStyle(0x1e4620, 1);
-        graphics.fillEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.92, MAP_CONFIG.height * 0.92);
-        
-        // Draw island - main green
-        graphics.fillStyle(0x2d5a27, 1);
-        graphics.fillEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.88, MAP_CONFIG.height * 0.88);
-        
-        // Draw beach
-        graphics.lineStyle(35, 0xf4d03f, 0.7);
-        graphics.strokeEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.86, MAP_CONFIG.height * 0.86);
-        
-        // Draw some palm trees scattered around
-        const palmPositions = [
-            {x: 150, y: 600}, {x: 200, y: 1200}, {x: 450, y: 400},
-            {x: 2100, y: 500}, {x: 2200, y: 1200}, {x: 1800, y: 1400},
-            {x: 600, y: 1500}, {x: 350, y: 1000}, {x: 2050, y: 900}
-        ];
-        palmPositions.forEach(pos => {
-            this.drawPalmTree(graphics, pos.x, pos.y);
-        });
+        // Draw island base
+        this.drawIsland(graphics);
         
         // Draw rooms
         Object.values(ROOMS).forEach(room => {
-            // Room shadow
-            graphics.fillStyle(0x000000, 0.2);
-            graphics.fillRoundedRect(room.x + 5, room.y + 5, room.width, room.height, 12);
-            
-            // Room floor - base color
-            graphics.fillStyle(room.color, 1);
-            graphics.fillRoundedRect(room.x, room.y, room.width, room.height, 12);
-            
-            // Room floor - gradient effect (lighter top)
-            graphics.fillStyle(0xffffff, 0.1);
-            graphics.fillRoundedRect(room.x, room.y, room.width, room.height / 3, {tl: 12, tr: 12, bl: 0, br: 0});
-            
-            // Room border
-            graphics.lineStyle(4, 0x222222, 1);
-            graphics.strokeRoundedRect(room.x, room.y, room.width, room.height, 12);
-            
-            // Special patterns
-            if (room.pattern === 'stripes') {
-                // Temple gold stripes - the infamous blue & gold temple
-                graphics.fillStyle(0xffd700, 1);
-                for (let i = 0; i < room.height; i += 25) {
-                    if ((i / 25) % 2 === 0) {
-                        graphics.fillRect(room.x + 8, room.y + i, room.width - 16, 12);
-                    }
-                }
-                // Temple door
-                graphics.fillStyle(0x8b4513, 1);
-                graphics.fillRoundedRect(room.x + room.width/2 - 25, room.y + room.height - 60, 50, 60, {tl: 25, tr: 25, bl: 0, br: 0});
+            this.drawRoom(graphics, room);
+        });
+        
+        // Draw connections between rooms (paths)
+        this.drawPaths(graphics);
+        
+        // Draw decorations
+        this.drawDecorations();
+        
+        // Draw task locations
+        this.drawTaskLocations(graphics);
+        
+        // Draw vents
+        this.drawVents(graphics);
+        
+        // Draw emergency button
+        this.drawEmergencyButton(graphics);
+        
+        // Draw sabotage fix locations
+        this.drawSabotageLocations(graphics);
+    }
+    
+    drawOcean(graphics) {
+        // Deep ocean background
+        graphics.fillStyle(0x0d3b66, 1);
+        graphics.fillRect(-500, -500, MAP_CONFIG.width + 1000, MAP_CONFIG.height + 1000);
+        
+        // Ocean waves/lighter areas
+        graphics.fillStyle(0x1a5276, 0.5);
+        for (let i = 0; i < 30; i++) {
+            const x = Math.random() * MAP_CONFIG.width;
+            const y = Math.random() * MAP_CONFIG.height;
+            graphics.fillEllipse(x, y, 80 + Math.random() * 200, 30 + Math.random() * 80);
+        }
+        
+        // Add some foam near shore
+        graphics.fillStyle(0xffffff, 0.2);
+        for (let i = 0; i < 15; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = MAP_CONFIG.width * 0.46 + Math.random() * 50;
+            const x = MAP_CONFIG.width / 2 + Math.cos(angle) * dist;
+            const y = MAP_CONFIG.height / 2 + Math.sin(angle) * dist * 0.8;
+            graphics.fillEllipse(x, y, 60 + Math.random() * 80, 20 + Math.random() * 30);
+        }
+    }
+    
+    drawIsland(graphics) {
+        // Island dark green border
+        graphics.fillStyle(0x1e4620, 1);
+        graphics.fillEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, 
+            MAP_CONFIG.width * 0.92, MAP_CONFIG.height * 0.92);
+        
+        // Main island green
+        graphics.fillStyle(0x2d5a27, 1);
+        graphics.fillEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, 
+            MAP_CONFIG.width * 0.88, MAP_CONFIG.height * 0.88);
+        
+        // Beach ring
+        graphics.lineStyle(45, 0xf4d03f, 0.7);
+        graphics.strokeEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, 
+            MAP_CONFIG.width * 0.86, MAP_CONFIG.height * 0.86);
+        
+        // Water edge
+        graphics.lineStyle(15, 0x00bfff, 0.4);
+        graphics.strokeEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, 
+            MAP_CONFIG.width * 0.88, MAP_CONFIG.height * 0.88);
+    }
+    
+    drawRoom(graphics, room) {
+        // Room shadow
+        graphics.fillStyle(0x000000, 0.25);
+        graphics.fillRoundedRect(room.x + 6, room.y + 6, room.width, room.height, 15);
+        
+        // Room floor base
+        graphics.fillStyle(room.color, 1);
+        graphics.fillRoundedRect(room.x, room.y, room.width, room.height, 15);
+        
+        // Hallways get different treatment
+        if (room.isHallway) {
+            // Floor pattern for hallways
+            graphics.fillStyle(0x2a1a0a, 0.3);
+            for (let i = 0; i < room.width; i += 40) {
+                graphics.fillRect(room.x + i, room.y, 2, room.height);
             }
-            
-            // Add room-specific decorations
-            this.addRoomDecorations(room);
-            
-            // Room label with better styling
+        } else if (room.isPath) {
+            // Dirt path texture
+            graphics.fillStyle(0x4a3a2a, 0.4);
+            for (let i = 0; i < 8; i++) {
+                const rx = room.x + Math.random() * room.width;
+                const ry = room.y + Math.random() * room.height;
+                graphics.fillCircle(rx, ry, 8 + Math.random() * 15);
+            }
+        } else {
+            // Light gradient on top
+            graphics.fillStyle(0xffffff, 0.08);
+            graphics.fillRoundedRect(room.x, room.y, room.width, room.height / 2.5, 
+                {tl: 15, tr: 15, bl: 0, br: 0});
+        }
+        
+        // Special patterns
+        if (room.pattern === 'stripes') {
+            // Temple gold stripes
+            graphics.fillStyle(0xffd700, 1);
+            for (let i = 0; i < room.height; i += 30) {
+                if ((i / 30) % 2 === 0) {
+                    graphics.fillRect(room.x + 10, room.y + i, room.width - 20, 15);
+                }
+            }
+            // Temple dome
+            graphics.fillStyle(0xffd700, 1);
+            graphics.fillEllipse(room.x + room.width/2, room.y - 20, room.width * 0.7, 60);
+            // Temple door
+            graphics.fillStyle(0x8b4513, 1);
+            graphics.fillRoundedRect(room.x + room.width/2 - 30, room.y + room.height - 70, 60, 70, 
+                {tl: 30, tr: 30, bl: 0, br: 0});
+        }
+        
+        // Room border
+        graphics.lineStyle(4, 0x222222, 0.9);
+        graphics.strokeRoundedRect(room.x, room.y, room.width, room.height, 15);
+        
+        // Room decorations
+        this.addRoomDecoration(graphics, room);
+        
+        // Room label
+        if (!room.isHallway && !room.isPath) {
             const text = this.scene.add.text(
                 room.x + room.width / 2,
-                room.y + 18,
+                room.y + 20,
                 room.name,
                 { 
-                    fontSize: '13px', 
+                    fontSize: '14px', 
                     color: '#ffffff', 
                     fontFamily: 'Arial Black, sans-serif',
                     fontStyle: 'bold',
                     stroke: '#000000',
-                    strokeThickness: 2
+                    strokeThickness: 3
                 }
             );
             text.setOrigin(0.5, 0);
             text.setDepth(3);
-        });
-        
-        // Draw task locations with better styling
-        TASK_LOCATIONS.forEach(task => {
-            // Outer glow
-            graphics.fillStyle(0xffff00, 0.3);
-            graphics.fillCircle(task.x, task.y, 22);
-            
-            // Main circle
-            graphics.fillStyle(0xffff00, 0.9);
-            graphics.fillCircle(task.x, task.y, 16);
-            
-            // Inner highlight
-            graphics.fillStyle(0xffffaa, 0.8);
-            graphics.fillCircle(task.x - 3, task.y - 3, 8);
-            
-            // Border
-            graphics.lineStyle(3, 0xcc9900, 1);
-            graphics.strokeCircle(task.x, task.y, 16);
-            
-            // Task icon
-            const icon = this.scene.add.text(task.x, task.y, '!', {
-                fontSize: '18px',
-                color: '#000000',
-                fontStyle: 'bold',
-                fontFamily: 'Arial Black'
-            });
-            icon.setOrigin(0.5);
-            icon.setDepth(2);
-        });
-        
-        // Draw vents with better styling
-        VENTS.forEach(vent => {
-            // Vent shadow
-            graphics.fillStyle(0x000000, 0.4);
-            graphics.fillRoundedRect(vent.x - 27, vent.y - 13, 54, 34, 5);
-            
-            // Vent body
-            graphics.fillStyle(0x2a2a2a, 1);
-            graphics.fillRoundedRect(vent.x - 28, vent.y - 16, 56, 32, 6);
-            
-            // Vent inner
-            graphics.fillStyle(0x111111, 1);
-            graphics.fillRoundedRect(vent.x - 24, vent.y - 12, 48, 24, 4);
-            
-            // Vent grate pattern
-            graphics.lineStyle(3, 0x444444, 1);
-            for (let i = -18; i <= 18; i += 9) {
-                graphics.lineBetween(vent.x + i, vent.y - 10, vent.x + i, vent.y + 10);
-            }
-            
-            // Vent border
-            graphics.lineStyle(2, 0x555555, 1);
-            graphics.strokeRoundedRect(vent.x - 28, vent.y - 16, 56, 32, 6);
-        });
-        
-        // Draw emergency button
-        graphics.fillStyle(0xff0000, 1);
-        graphics.fillCircle(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 30);
-        graphics.lineStyle(3, 0xffffff, 1);
-        graphics.strokeCircle(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 30);
-        
-        const buttonText = this.scene.add.text(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, '🚨', {
-            fontSize: '24px'
-        });
-        buttonText.setOrigin(0.5);
-        
-        // Draw sabotage fix locations
-        Object.entries(SABOTAGE_TARGETS).forEach(([type, loc]) => {
-            graphics.fillStyle(0xff4757, 0.5);
-            graphics.fillCircle(loc.x, loc.y, 20);
-        });
+        }
     }
     
-    drawPalmTree(graphics, x, y) {
-        // Tree trunk
-        graphics.fillStyle(0x8b4513, 1);
-        graphics.fillRect(x - 5, y - 40, 10, 50);
+    addRoomDecoration(graphics, room) {
+        // Room-specific decorations based on decoration type
+        const decoration = room.decoration;
+        if (!decoration) return;
         
-        // Palm fronds
-        graphics.fillStyle(0x228b22, 1);
-        // Left fronds
-        graphics.fillEllipse(x - 25, y - 50, 30, 12);
-        graphics.fillEllipse(x - 20, y - 60, 25, 10);
-        // Right fronds
-        graphics.fillEllipse(x + 25, y - 50, 30, 12);
-        graphics.fillEllipse(x + 20, y - 60, 25, 10);
-        // Top fronds
-        graphics.fillEllipse(x, y - 70, 20, 15);
-        graphics.fillEllipse(x - 10, y - 55, 22, 10);
-        graphics.fillEllipse(x + 10, y - 55, 22, 10);
+        const cx = room.x + room.width / 2;
+        const cy = room.y + room.height / 2;
         
-        // Coconuts
-        graphics.fillStyle(0x8b4513, 1);
-        graphics.fillCircle(x - 5, y - 42, 5);
-        graphics.fillCircle(x + 5, y - 45, 5);
-    }
-    
-    addRoomDecorations(room) {
-        // Add emojis/decorations based on room type
-        const decorations = {
+        switch (decoration) {
+            case 'chandelier':
+                // Chandelier hanging from ceiling
+                graphics.fillStyle(0xffd700, 0.8);
+                graphics.fillCircle(cx, cy - 20, 25);
+                graphics.fillStyle(0xffffaa, 0.5);
+                graphics.fillCircle(cx, cy - 20, 35);
+                break;
+                
+            case 'bed':
+                // Bed
+                graphics.fillStyle(0xf5f5dc, 1);
+                graphics.fillRoundedRect(cx - 40, cy + 20, 80, 50, 8);
+                graphics.fillStyle(0x8b4513, 1);
+                graphics.fillRect(cx - 45, cy + 10, 90, 15);
+                break;
+                
+            case 'kitchen':
+                // Kitchen counter
+                graphics.fillStyle(0x808080, 1);
+                graphics.fillRect(room.x + 20, room.y + 50, room.width - 40, 20);
+                // Stove
+                graphics.fillStyle(0x333333, 1);
+                graphics.fillRect(room.x + 30, room.y + 80, 60, 50);
+                break;
+                
+            case 'table':
+                // Dining table
+                graphics.fillStyle(0x8b4513, 1);
+                graphics.fillEllipse(cx, cy + 20, 120, 60);
+                // Chairs
+                graphics.fillStyle(0x654321, 1);
+                for (let i = 0; i < 6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    const chairX = cx + Math.cos(angle) * 70;
+                    const chairY = cy + 20 + Math.sin(angle) * 40;
+                    graphics.fillCircle(chairX, chairY, 12);
+                }
+                break;
+                
+            case 'pool':
+                // Pool water
+                graphics.fillStyle(0x00bfff, 0.9);
+                graphics.fillRoundedRect(room.x + 30, room.y + 40, room.width - 60, room.height - 80, 20);
+                // Pool edge
+                graphics.lineStyle(8, 0xffffff, 0.8);
+                graphics.strokeRoundedRect(room.x + 30, room.y + 40, room.width - 60, room.height - 80, 20);
+                // Pool ladder
+                graphics.fillStyle(0xc0c0c0, 1);
+                graphics.fillRect(room.x + room.width - 50, room.y + 60, 15, 40);
+                break;
+                
+            case 'beach':
+                // Beach umbrellas
+                graphics.fillStyle(0xff4444, 0.9);
+                graphics.fillEllipse(cx - 60, cy, 50, 30);
+                graphics.fillStyle(0x4444ff, 0.9);
+                graphics.fillEllipse(cx + 60, cy, 50, 30);
+                // Umbrella poles
+                graphics.fillStyle(0x8b4513, 1);
+                graphics.fillRect(cx - 62, cy + 15, 4, 30);
+                graphics.fillRect(cx + 58, cy + 15, 4, 30);
+                break;
+                
+            case 'tennis':
+                // Tennis net
+                graphics.fillStyle(0xffffff, 0.8);
+                graphics.fillRect(cx - 2, room.y + 30, 4, room.height - 60);
+                // Court lines
+                graphics.lineStyle(3, 0xffffff, 0.9);
+                graphics.strokeRect(room.x + 20, room.y + 30, room.width - 40, room.height - 60);
+                break;
+                
+            case 'helipad':
+                // Helipad H
+                graphics.fillStyle(0xffff00, 1);
+                graphics.lineStyle(8, 0xffff00, 1);
+                graphics.strokeCircle(cx, cy, 60);
+                // H
+                const fontSize = 60;
+                const hText = this.scene.add.text(cx, cy, 'H', {
+                    fontSize: fontSize + 'px',
+                    color: '#ffff00',
+                    fontStyle: 'bold'
+                });
+                hText.setOrigin(0.5);
+                hText.setDepth(2);
+                break;
+                
+            case 'dock':
+                // Wooden planks
+                graphics.fillStyle(0x8b4513, 1);
+                for (let i = 0; i < room.height; i += 30) {
+                    graphics.fillRect(room.x + 10, room.y + i, room.width - 20, 25);
+                }
+                // Ropes
+                graphics.lineStyle(4, 0xdaa520, 1);
+                graphics.lineBetween(room.x + 20, room.y + 20, room.x + 20, room.y + 80);
+                break;
+                
+            case 'servers':
+                // Server racks
+                graphics.fillStyle(0x1a1a1a, 1);
+                for (let i = 0; i < 3; i++) {
+                    graphics.fillRect(room.x + 20 + i * 60, room.y + 40, 50, room.height - 80);
+                    // Blinking lights
+                    graphics.fillStyle(0x00ff00, 0.8);
+                    graphics.fillCircle(room.x + 30 + i * 60, room.y + 60, 4);
+                    graphics.fillCircle(room.x + 30 + i * 60, room.y + 80, 4);
+                }
+                break;
+                
+            case 'cameras':
+                // Security monitors
+                graphics.fillStyle(0x1a1a1a, 1);
+                graphics.fillRect(cx - 70, room.y + 30, 140, 80);
+                // Screen glow
+                graphics.fillStyle(0x4a9eff, 0.6);
+                graphics.fillRect(cx - 60, room.y + 40, 120, 60);
+                break;
+                
+            case 'boxes':
+                // Storage boxes
+                graphics.fillStyle(0x8b7355, 1);
+                graphics.fillRect(room.x + 30, room.y + 50, 50, 40);
+                graphics.fillRect(room.x + 90, room.y + 60, 40, 30);
+                graphics.fillRect(room.x + 140, room.y + 45, 55, 45);
+                break;
+                
+            case 'temple':
+                // Mysterious altar
+                graphics.fillStyle(0x333333, 1);
+                graphics.fillRect(cx - 30, cy + 30, 60, 40);
+                graphics.fillStyle(0xffd700, 0.8);
+                graphics.fillCircle(cx, cy + 20, 15);
+                break;
+        }
+        
+        // Add emoji decoration
+        const emojis = {
             'mainHall': '🏛️',
             'masterSuite': '🛏️',
-            'guestWing': '🚪',
+            'guestVilla1': '🚪',
+            'guestVilla2': '🚪',
             'kitchen': '🍳',
             'diningRoom': '🍽️',
             'temple': '⛩️',
             'poolArea': '🏊',
+            'beach': '🏖️',
             'tennisCourt': '🎾',
             'helipad': '🚁',
             'dock': '⚓',
@@ -307,17 +450,201 @@ class AmongUsGame {
             'securityOffice': '📹'
         };
         
-        const emoji = decorations[room.id];
-        if (emoji && room.id !== 'junglePath1' && room.id !== 'junglePath2') {
+        const emoji = emojis[room.id];
+        if (emoji && !room.isHallway && !room.isPath) {
             const deco = this.scene.add.text(
-                room.x + room.width - 30,
-                room.y + room.height - 30,
+                room.x + room.width - 35,
+                room.y + room.height - 35,
                 emoji,
-                { fontSize: '24px' }
+                { fontSize: '28px' }
             );
-            deco.setAlpha(0.6);
+            deco.setAlpha(0.7);
             deco.setDepth(2);
         }
+    }
+    
+    drawPaths(graphics) {
+        // Draw visual connections between rooms
+        DOORS.forEach(door => {
+            const room1 = ROOMS[door.from];
+            const room2 = ROOMS[door.to];
+            
+            if (room1 && room2) {
+                const x1 = room1.x + room1.width / 2;
+                const y1 = room1.y + room1.height / 2;
+                const x2 = room2.x + room2.width / 2;
+                const y2 = room2.y + room2.height / 2;
+                
+                // Only draw path indicators for jungle paths
+                if (room1.isPath || room2.isPath) {
+                    graphics.lineStyle(4, 0x3a5a3a, 0.5);
+                    graphics.lineBetween(x1, y1, x2, y2);
+                }
+            }
+        });
+    }
+    
+    drawDecorations() {
+        // Palm trees around the island
+        const palmPositions = [
+            {x: 150, y: 700}, {x: 200, y: 1500}, {x: 450, y: 500},
+            {x: 2400, y: 600}, {x: 2500, y: 1300}, {x: 2100, y: 1700},
+            {x: 700, y: 1800}, {x: 350, y: 1100}, {x: 2300, y: 800},
+            {x: 550, y: 350}, {x: 1800, y: 200}, {x: 2200, y: 1500},
+            {x: 100, y: 1700}, {x: 2600, y: 1100}
+        ];
+        
+        const graphics = this.scene.add.graphics();
+        
+        palmPositions.forEach(pos => {
+            this.drawPalmTree(graphics, pos.x, pos.y);
+        });
+        
+        // Add rocks near beach
+        const rockPositions = [
+            {x: 250, y: 1750}, {x: 400, y: 1680}, {x: 500, y: 1720}
+        ];
+        
+        rockPositions.forEach(pos => {
+            this.drawRock(graphics, pos.x, pos.y);
+        });
+    }
+    
+    drawPalmTree(graphics, x, y) {
+        // Tree trunk
+        graphics.fillStyle(0x8b4513, 1);
+        graphics.fillRect(x - 6, y - 50, 12, 60);
+        
+        // Trunk texture
+        graphics.lineStyle(2, 0x654321, 0.5);
+        for (let i = -45; i < 5; i += 10) {
+            graphics.lineBetween(x - 6, y + i, x + 6, y + i);
+        }
+        
+        // Palm fronds
+        graphics.fillStyle(0x228b22, 1);
+        // Left fronds
+        graphics.fillEllipse(x - 30, y - 60, 35, 14);
+        graphics.fillEllipse(x - 25, y - 72, 28, 12);
+        // Right fronds
+        graphics.fillEllipse(x + 30, y - 60, 35, 14);
+        graphics.fillEllipse(x + 25, y - 72, 28, 12);
+        // Top fronds
+        graphics.fillEllipse(x, y - 85, 24, 18);
+        graphics.fillEllipse(x - 12, y - 68, 26, 12);
+        graphics.fillEllipse(x + 12, y - 68, 26, 12);
+        
+        // Darker frond details
+        graphics.fillStyle(0x1a6b1a, 0.6);
+        graphics.fillEllipse(x - 28, y - 58, 20, 8);
+        graphics.fillEllipse(x + 28, y - 58, 20, 8);
+        
+        // Coconuts
+        graphics.fillStyle(0x8b4513, 1);
+        graphics.fillCircle(x - 6, y - 52, 6);
+        graphics.fillCircle(x + 6, y - 55, 6);
+        graphics.fillCircle(x, y - 48, 5);
+    }
+    
+    drawRock(graphics, x, y) {
+        graphics.fillStyle(0x696969, 1);
+        graphics.fillEllipse(x, y, 30 + Math.random() * 20, 15 + Math.random() * 10);
+        graphics.fillStyle(0x888888, 0.5);
+        graphics.fillEllipse(x - 5, y - 3, 15, 8);
+    }
+    
+    drawTaskLocations(graphics) {
+        TASK_LOCATIONS.forEach(task => {
+            // Outer glow
+            graphics.fillStyle(0xffff00, 0.25);
+            graphics.fillCircle(task.x, task.y, 28);
+            
+            // Main circle
+            graphics.fillStyle(0xffff00, 0.9);
+            graphics.fillCircle(task.x, task.y, 18);
+            
+            // Inner highlight
+            graphics.fillStyle(0xffffaa, 0.9);
+            graphics.fillCircle(task.x - 4, task.y - 4, 9);
+            
+            // Border
+            graphics.lineStyle(3, 0xcc9900, 1);
+            graphics.strokeCircle(task.x, task.y, 18);
+            
+            // Task icon
+            const icon = this.scene.add.text(task.x, task.y, '!', {
+                fontSize: '20px',
+                color: '#000000',
+                fontStyle: 'bold',
+                fontFamily: 'Arial Black'
+            });
+            icon.setOrigin(0.5);
+            icon.setDepth(2);
+        });
+    }
+    
+    drawVents(graphics) {
+        VENTS.forEach(vent => {
+            // Vent shadow
+            graphics.fillStyle(0x000000, 0.4);
+            graphics.fillRoundedRect(vent.x - 30, vent.y - 12, 60, 36, 6);
+            
+            // Vent body
+            graphics.fillStyle(0x2a2a2a, 1);
+            graphics.fillRoundedRect(vent.x - 32, vent.y - 16, 64, 36, 8);
+            
+            // Vent inner
+            graphics.fillStyle(0x0a0a0a, 1);
+            graphics.fillRoundedRect(vent.x - 28, vent.y - 12, 56, 28, 5);
+            
+            // Vent grate pattern
+            graphics.lineStyle(4, 0x444444, 1);
+            for (let i = -20; i <= 20; i += 10) {
+                graphics.lineBetween(vent.x + i, vent.y - 10, vent.x + i, vent.y + 12);
+            }
+            
+            // Vent border
+            graphics.lineStyle(2, 0x555555, 1);
+            graphics.strokeRoundedRect(vent.x - 32, vent.y - 16, 64, 36, 8);
+        });
+    }
+    
+    drawEmergencyButton(graphics) {
+        // Button glow
+        graphics.fillStyle(0xff0000, 0.3);
+        graphics.fillCircle(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 45);
+        
+        // Button base
+        graphics.fillStyle(0x333333, 1);
+        graphics.fillCircle(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 38);
+        
+        // Button
+        graphics.fillStyle(0xff0000, 1);
+        graphics.fillCircle(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 32);
+        
+        // Button highlight
+        graphics.fillStyle(0xff6666, 0.6);
+        graphics.fillEllipse(EMERGENCY_BUTTON.x - 8, EMERGENCY_BUTTON.y - 8, 18, 12);
+        
+        // Button border
+        graphics.lineStyle(4, 0xffffff, 1);
+        graphics.strokeCircle(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, 32);
+        
+        // Button label
+        const buttonText = this.scene.add.text(EMERGENCY_BUTTON.x, EMERGENCY_BUTTON.y, '🚨', {
+            fontSize: '28px'
+        });
+        buttonText.setOrigin(0.5);
+        buttonText.setDepth(3);
+    }
+    
+    drawSabotageLocations(graphics) {
+        Object.entries(SABOTAGE_TARGETS).forEach(([type, loc]) => {
+            graphics.fillStyle(0xff4757, 0.4);
+            graphics.fillCircle(loc.x, loc.y, 22);
+            graphics.lineStyle(2, 0xff4757, 0.6);
+            graphics.strokeCircle(loc.x, loc.y, 22);
+        });
     }
     
     createPlayers() {
@@ -345,18 +672,19 @@ class AmongUsGame {
                 name: char.name,
                 color: char.color,
                 bio: char.bio,
-                features: char.features || {}, // Include character features for sprite drawing
+                features: char.features || {},
                 isPlayer: char.isPlayer || false,
                 isImpostor: char.isImpostor || false,
                 isDead: false,
-                x: spawn.x + (Math.random() - 0.5) * 40,
-                y: spawn.y + (Math.random() - 0.5) * 40,
+                x: spawn.x + (Math.random() - 0.5) * 50,
+                y: spawn.y + (Math.random() - 0.5) * 50,
                 sprite: null,
                 nameText: null,
                 tasks: [],
                 vx: 0,
                 vy: 0,
-                inVent: false
+                inVent: false,
+                walkFrame: 0
             };
             
             // Assign tasks
@@ -421,9 +749,12 @@ class AmongUsGame {
         player.sprite.setOrigin(0.5, 0.7);
         player.sprite.setDepth(10);
         
+        // Store texture key for recreation
+        this.playerSprites.set(player.id, key);
+        
         // Name text with character-specific styling
         const nameStyle = {
-            fontSize: '11px',
+            fontSize: '12px',
             color: '#ffffff',
             fontFamily: '"Arial Black", Gadget, sans-serif',
             fontStyle: 'bold',
@@ -432,7 +763,7 @@ class AmongUsGame {
             shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 2, fill: true }
         };
         
-        player.nameText = this.scene.add.text(player.x, player.y + 40, player.name, nameStyle);
+        player.nameText = this.scene.add.text(player.x, player.y + 42, player.name, nameStyle);
         player.nameText.setOrigin(0.5);
         player.nameText.setDepth(11);
     }
@@ -440,12 +771,25 @@ class AmongUsGame {
     setupCamera() {
         this.scene.cameras.main.setBounds(0, 0, MAP_CONFIG.width, MAP_CONFIG.height);
         
-        if (this.localPlayer) {
-            this.scene.cameras.main.startFollow(this.localPlayer.sprite, true, 0.1, 0.1);
+        if (this.localPlayer && !this.demoMode) {
+            this.scene.cameras.main.startFollow(this.localPlayer.sprite, true, 0.08, 0.08);
+        } else if (this.demoMode) {
+            // In demo mode, follow a random player or pan around
+            this.scene.cameras.main.startFollow(this.localPlayer.sprite, true, 0.05, 0.05);
         }
     }
     
     setupInput() {
+        if (this.demoMode) {
+            // Limited input in demo mode
+            this.scene.input.keyboard.on('keydown', (event) => {
+                if (event.code === 'Escape') {
+                    this.exitDemoMode();
+                }
+            });
+            return;
+        }
+        
         // Keyboard
         this.scene.input.keyboard.on('keydown', (event) => {
             this.keys[event.code] = true;
@@ -458,6 +802,20 @@ class AmongUsGame {
         
         // Mobile joystick
         this.setupMobileControls();
+    }
+    
+    exitDemoMode() {
+        this.demoMode = false;
+        this.aiController.setDemoMode(false);
+        
+        // Re-setup camera to follow player
+        this.scene.cameras.main.startFollow(this.localPlayer.sprite, true, 0.08, 0.08);
+        
+        // Re-setup input
+        this.setupInput();
+        
+        // Show message
+        this.showMessage('Demo mode disabled - You are now in control!', '#2ed573');
     }
     
     setupMobileControls() {
@@ -509,6 +867,7 @@ class AmongUsGame {
     handleKeyPress(code) {
         if (this.gameState !== 'playing') return;
         if (this.localPlayer.isDead) return;
+        if (this.demoMode) return;
         
         switch (code) {
             case 'KeyE':
@@ -562,8 +921,30 @@ class AmongUsGame {
             document.querySelectorAll('.impostor-only').forEach(el => el.style.display = 'none');
         }
         
-        // Show role reveal
-        this.showRoleReveal();
+        // Show role reveal (skip in demo mode for cleaner look)
+        if (!this.demoMode) {
+            this.showRoleReveal();
+        }
+        
+        // Demo mode indicator
+        if (this.demoMode) {
+            const demoIndicator = document.createElement('div');
+            demoIndicator.id = 'demo-indicator';
+            demoIndicator.innerHTML = '🎬 DEMO MODE<br><small>Press ESC to take control</small>';
+            demoIndicator.style.cssText = `
+                position: fixed;
+                top: 60px;
+                right: 20px;
+                background: rgba(255, 71, 87, 0.9);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 10px;
+                font-weight: bold;
+                z-index: 1000;
+                text-align: center;
+            `;
+            document.body.appendChild(demoIndicator);
+        }
     }
     
     showRoleReveal() {
@@ -601,6 +982,27 @@ class AmongUsGame {
         }, 3000);
     }
     
+    showMessage(text, color = '#ffffff') {
+        const msg = document.createElement('div');
+        msg.style.cssText = `
+            position: fixed;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: ${color};
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeInOut 3s forwards;
+        `;
+        msg.textContent = text;
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 3000);
+    }
+    
     updateTaskList() {
         if (!this.localPlayer) return;
         
@@ -623,7 +1025,17 @@ class AmongUsGame {
     update() {
         if (this.gameState !== 'playing') return;
         
-        this.updateLocalPlayer();
+        // Update animation frame
+        this.animationFrame++;
+        
+        // Update local player (only if not in demo mode)
+        if (!this.demoMode) {
+            this.updateLocalPlayer();
+        }
+        
+        // Update all player sprites
+        this.updatePlayerSprites();
+        
         this.updateUI();
         this.checkGameEnd();
         this.updateSabotage();
@@ -665,7 +1077,14 @@ class AmongUsGame {
             this.localPlayer.sprite.x = newX;
             this.localPlayer.sprite.y = newY;
             this.localPlayer.nameText.x = newX;
-            this.localPlayer.nameText.y = newY + 40;
+            this.localPlayer.nameText.y = newY + 42;
+            
+            // Walking animation
+            if (mag > 0) {
+                this.localPlayer.walkFrame = (this.localPlayer.walkFrame + 0.2) % (Math.PI * 2);
+                const bobAmount = Math.sin(this.localPlayer.walkFrame) * 2;
+                this.localPlayer.sprite.y = newY + bobAmount;
+            }
             
             // Flip sprite based on direction
             if (dx !== 0) {
@@ -674,13 +1093,35 @@ class AmongUsGame {
         }
     }
     
+    updatePlayerSprites() {
+        // Update all player positions and animations
+        this.players.forEach(player => {
+            if (player.isDead) return;
+            if (player.inVent) return;
+            
+            // Sync sprite position
+            player.sprite.x = player.x;
+            player.sprite.y = player.y;
+            player.nameText.x = player.x;
+            player.nameText.y = player.y + 42;
+            
+            // Idle animation for non-moving players
+            if (!player.isPlayer || this.demoMode) {
+                const idleOffset = Math.sin(this.animationFrame * 0.05 + player.id.charCodeAt(0)) * 1;
+                player.sprite.y = player.y + idleOffset;
+            }
+        });
+    }
+    
     updateUI() {
         // Update task progress bar
         const progress = this.totalTasks > 0 ? (this.completedTasks / this.totalTasks) * 100 : 0;
         this.taskBar.style.width = progress + '%';
         
         // Update action buttons visibility
-        this.updateActionButtons();
+        if (!this.demoMode) {
+            this.updateActionButtons();
+        }
     }
     
     updateActionButtons() {
@@ -794,6 +1235,8 @@ class AmongUsGame {
     }
     
     handleUseAction() {
+        if (this.demoMode) return;
+        
         if (this.localPlayer.inVent) {
             this.handleVentAction();
             return;
@@ -817,6 +1260,7 @@ class AmongUsGame {
     }
     
     handleKillAction() {
+        if (this.demoMode) return;
         if (!this.localPlayer.isImpostor) return;
         if (Date.now() - this.lastKillTime < this.killCooldown * 1000) return;
         
@@ -828,6 +1272,8 @@ class AmongUsGame {
     }
     
     handleReportAction() {
+        if (this.demoMode) return;
+        
         const body = this.getNearbyBody();
         if (body) {
             this.reportBody(this.localPlayer, body);
@@ -835,6 +1281,7 @@ class AmongUsGame {
     }
     
     handleVentAction() {
+        if (this.demoMode) return;
         if (!this.localPlayer.isImpostor) return;
         
         if (this.localPlayer.inVent) {
@@ -842,6 +1289,10 @@ class AmongUsGame {
             this.localPlayer.inVent = false;
             this.localPlayer.sprite.setVisible(true);
             this.localPlayer.nameText.setVisible(true);
+            
+            if (typeof musicManager !== 'undefined') {
+                musicManager.playVentSound();
+            }
         } else {
             const vent = this.getNearbyVent();
             if (vent) {
@@ -849,6 +1300,10 @@ class AmongUsGame {
                 this.localPlayer.inVent = true;
                 this.localPlayer.sprite.setVisible(false);
                 this.localPlayer.nameText.setVisible(false);
+                
+                if (typeof musicManager !== 'undefined') {
+                    musicManager.playVentSound();
+                }
                 
                 // Show vent options
                 this.showVentMenu(vent);
@@ -863,7 +1318,7 @@ class AmongUsGame {
         menu.innerHTML = `
             <div class="panel">
                 <h3>🕳️ VENTS</h3>
-                <div style="display: flex; gap: 15px; justify-content: center; margin: 20px 0;">
+                <div style="display: flex; gap: 15px; justify-content: center; margin: 20px 0; flex-wrap: wrap;">
                     ${currentVent.connections.map(ventId => {
                         const vent = VENTS.find(v => v.id === ventId);
                         const room = ROOMS[vent.room];
@@ -884,7 +1339,11 @@ class AmongUsGame {
                     this.localPlayer.sprite.x = targetVent.x;
                     this.localPlayer.sprite.y = targetVent.y;
                     this.localPlayer.nameText.x = targetVent.x;
-                    this.localPlayer.nameText.y = targetVent.y + 40;
+                    this.localPlayer.nameText.y = targetVent.y + 42;
+                    
+                    if (typeof musicManager !== 'undefined') {
+                        musicManager.playVentSound();
+                    }
                 }
                 menu.remove();
             });
@@ -911,8 +1370,7 @@ class AmongUsGame {
             color: victim.color,
             x: victim.x,
             y: victim.y,
-            sprite: null,
-            boneSprite: null
+            sprite: null
         };
         
         // Create proper Among Us style dead body sprite
@@ -927,15 +1385,20 @@ class AmongUsGame {
         
         this.deadBodies.push(body);
         
-        // Show kill message if player did the kill
-        if (killer.id === this.localPlayer.id) {
+        // Play kill sound
+        if (typeof musicManager !== 'undefined') {
+            musicManager.playKillSound();
+        }
+        
+        // Show kill message if player did the kill (or in demo mode)
+        if (killer.id === this.localPlayer.id || this.demoMode) {
             // Teleport killer to victim position
             killer.x = victim.x;
             killer.y = victim.y;
             killer.sprite.x = victim.x;
             killer.sprite.y = victim.y;
             killer.nameText.x = victim.x;
-            killer.nameText.y = victim.y + 40;
+            killer.nameText.y = victim.y + 42;
             
             // Show kill message briefly
             const killMsg = getKillMessage(killer, victim);
@@ -957,31 +1420,42 @@ class AmongUsGame {
             top: 100px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 0, 0, 0.8);
+            background: rgba(255, 0, 0, 0.9);
             color: white;
             padding: 15px 30px;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 1.2em;
             font-weight: bold;
             z-index: 1000;
-            animation: fadeInOut 2s forwards;
+            animation: fadeInOut 2.5s forwards;
+            text-shadow: 1px 1px 2px black;
         `;
         document.body.appendChild(msgDiv);
-        setTimeout(() => msgDiv.remove(), 2000);
+        setTimeout(() => msgDiv.remove(), 2500);
     }
     
     reportBody(reporter, body) {
+        if (typeof musicManager !== 'undefined') {
+            musicManager.playReportSound();
+        }
         this.startMeeting('body', reporter, body);
     }
     
     callEmergencyMeeting() {
         this.canCallMeeting = false;
+        if (typeof musicManager !== 'undefined') {
+            musicManager.playMeetingStart();
+        }
         this.startMeeting('emergency', this.localPlayer, null);
     }
     
     startMeeting(type, caller, body) {
         this.gameState = 'meeting';
         this.aiController.stop();
+        
+        if (typeof musicManager !== 'undefined') {
+            musicManager.playMeetingStart();
+        }
         
         // Clear dead bodies
         this.deadBodies.forEach(b => {
@@ -999,7 +1473,7 @@ class AmongUsGame {
             player.sprite.x = spawn.x;
             player.sprite.y = spawn.y;
             player.nameText.x = spawn.x;
-            player.nameText.y = spawn.y + 40;
+            player.nameText.y = spawn.y + 42;
             player.sprite.setVisible(true);
             player.nameText.setVisible(true);
             player.inVent = false;
@@ -1025,6 +1499,11 @@ class AmongUsGame {
         
         // Start voting timer
         this.startVotingTimer();
+        
+        // In demo mode, auto-vote
+        if (this.demoMode) {
+            setTimeout(() => this.castVote('auto'), 3000 + Math.random() * 5000);
+        }
     }
     
     createVotingCards() {
@@ -1056,7 +1535,7 @@ class AmongUsGame {
             card.appendChild(name);
             card.appendChild(voteCount);
             
-            if (!player.isDead && !this.localPlayer.isDead) {
+            if (!player.isDead && !this.localPlayer.isDead && !this.demoMode) {
                 card.addEventListener('click', () => this.selectVote(player.id));
             }
             
@@ -1079,9 +1558,21 @@ class AmongUsGame {
     }
     
     castVote(vote) {
-        if (this.localPlayer.isDead) return;
+        if (this.localPlayer.isDead && vote !== 'auto') return;
         
-        const finalVote = vote || this.selectedVote || 'skip';
+        // In demo mode or auto, determine vote automatically
+        let finalVote;
+        if (vote === 'auto' || this.demoMode) {
+            const alive = this.players.filter(p => !p.isDead);
+            if (Math.random() < 0.2) {
+                finalVote = 'skip';
+            } else {
+                finalVote = alive[Math.floor(Math.random() * alive.length)].id;
+            }
+        } else {
+            finalVote = vote || this.selectedVote || 'skip';
+        }
+        
         this.votes[this.localPlayer.id] = finalVote;
         
         // Bots vote
@@ -1140,6 +1631,10 @@ class AmongUsGame {
     processVoteResults() {
         clearInterval(this.voteTimerInterval);
         
+        if (typeof musicManager !== 'undefined') {
+            musicManager.playMeetingEnd();
+        }
+        
         // Find player with most votes
         let maxVotes = 0;
         let ejected = null;
@@ -1167,6 +1662,10 @@ class AmongUsGame {
         const ejectedChar = document.getElementById('ejected-character');
         const ejectionText = document.getElementById('ejection-text');
         
+        if (typeof musicManager !== 'undefined') {
+            musicManager.playEjectSound();
+        }
+        
         if (tie || !ejected || votes === 0) {
             ejectedChar.style.display = 'none';
             ejectionText.innerHTML = `
@@ -1181,7 +1680,7 @@ class AmongUsGame {
             ejectedChar.style.backgroundColor = hexToCSS(ejected.color);
             ejectedChar.style.width = '80px';
             ejectedChar.style.height = '100px';
-            ejectedChar.style.borderRadius = '50% 50% 50% 50%';
+            ejectedChar.style.borderRadius = '50% 50% 40% 40%';
             
             // Eject the player
             ejected.isDead = true;
@@ -1208,17 +1707,10 @@ class AmongUsGame {
         
         ejectionScreen.classList.remove('hidden');
         
-        // Play dramatic sound effect (if available)
-        this.playEjectionSound();
-        
         setTimeout(() => {
             ejectionScreen.classList.add('hidden');
             this.resumeGame();
         }, 5000);
-    }
-    
-    playEjectionSound() {
-        // Future: Add sound effects
     }
     
     resumeGame() {
@@ -1234,6 +1726,10 @@ class AmongUsGame {
             task.completed = true;
             this.completedTasks++;
             this.updateTaskList();
+            
+            if (typeof musicManager !== 'undefined') {
+                musicManager.playTaskCompleteSound();
+            }
         }
     }
     
@@ -1251,7 +1747,12 @@ class AmongUsGame {
             bot.sprite.x = newX;
             bot.sprite.y = newY;
             bot.nameText.x = newX;
-            bot.nameText.y = newY + 40;
+            bot.nameText.y = newY + 42;
+            
+            // Walking animation
+            bot.walkFrame = (bot.walkFrame + 0.15) % (Math.PI * 2);
+            const bobAmount = Math.sin(bot.walkFrame) * 2;
+            bot.sprite.y = newY + bobAmount;
             
             if (vx !== 0) {
                 bot.sprite.setFlipX(vx < 0);
@@ -1265,7 +1766,7 @@ class AmongUsGame {
         bot.sprite.x = targetVent.x;
         bot.sprite.y = targetVent.y;
         bot.nameText.x = targetVent.x;
-        bot.nameText.y = targetVent.y + 40;
+        bot.nameText.y = targetVent.y + 42;
     }
     
     openSabotageMenu() {
@@ -1315,7 +1816,7 @@ class AmongUsGame {
         
         // Check if near fix location
         const fixLoc = SABOTAGE_TARGETS[this.sabotageActive];
-        if (fixLoc) {
+        if (fixLoc && !this.demoMode) {
             const dx = fixLoc.x - this.localPlayer.x;
             const dy = fixLoc.y - this.localPlayer.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1323,6 +1824,11 @@ class AmongUsGame {
             if (dist < 50 && (this.keys['KeyE'] || this.keys['Space'])) {
                 this.fixSabotage();
             }
+        }
+        
+        // Auto-fix in demo mode
+        if (this.demoMode && this.sabotageTimer < 10) {
+            this.fixSabotage();
         }
         
         // Critical sabotage timeout
@@ -1374,6 +1880,10 @@ class AmongUsGame {
         this.gameState = 'gameover';
         this.aiController.stop();
         
+        if (typeof musicManager !== 'undefined') {
+            musicManager.playVictory(winner === 'impostor');
+        }
+        
         const gameOverScreen = document.getElementById('game-over-screen');
         const title = document.getElementById('game-over-title');
         const text = document.getElementById('game-over-text');
@@ -1382,7 +1892,7 @@ class AmongUsGame {
         const playerWon = (winner === 'impostor' && this.localPlayer.isImpostor) ||
                          (winner === 'crewmate' && !this.localPlayer.isImpostor);
         
-        title.textContent = playerWon ? 'VICTORY' : 'DEFEAT';
+        title.textContent = this.demoMode ? (winner === 'crewmate' ? 'CREWMATES WIN' : 'IMPOSTORS WIN') : (playerWon ? 'VICTORY' : 'DEFEAT');
         title.className = winner === 'crewmate' ? 'crewmate-win' : 'impostor-win';
         
         text.textContent = reason;
@@ -1405,6 +1915,11 @@ class AmongUsGame {
         });
         
         document.getElementById('game-hud').classList.add('hidden');
+        
+        // Remove demo indicator
+        const demoIndicator = document.getElementById('demo-indicator');
+        if (demoIndicator) demoIndicator.remove();
+        
         gameOverScreen.classList.remove('hidden');
         
         document.getElementById('play-again-btn').addEventListener('click', () => {
