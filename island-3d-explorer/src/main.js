@@ -354,6 +354,174 @@ The remaining pages are blank.`,
 ];
 
 // ============================================
+// AUDIO SYSTEM
+// ============================================
+
+class AmbientAudio {
+    constructor() {
+        this.audioContext = null;
+        this.masterGain = null;
+        this.isPlaying = false;
+        this.oscillators = [];
+    }
+    
+    init() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.masterGain = this.audioContext.createGain();
+            this.masterGain.gain.value = 0.15;
+            this.masterGain.connect(this.audioContext.destination);
+        } catch (e) {
+            console.log('Web Audio not supported');
+        }
+    }
+    
+    start() {
+        if (!this.audioContext || this.isPlaying) return;
+        
+        // Resume context if suspended
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        
+        // Create layered ambient sounds
+        
+        // Ocean waves - low rumble
+        this.createOceanSound();
+        
+        // Wind
+        this.createWindSound();
+        
+        // Occasional bird calls
+        this.scheduleBirdCalls();
+        
+        this.isPlaying = true;
+    }
+    
+    createOceanSound() {
+        // Create noise buffer for ocean
+        const bufferSize = 2 * this.audioContext.sampleRate;
+        const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+        }
+        
+        const whiteNoise = this.audioContext.createBufferSource();
+        whiteNoise.buffer = noiseBuffer;
+        whiteNoise.loop = true;
+        
+        // Filter to create ocean sound
+        const lowpass = this.audioContext.createBiquadFilter();
+        lowpass.type = 'lowpass';
+        lowpass.frequency.value = 400;
+        
+        const gain = this.audioContext.createGain();
+        gain.gain.value = 0.3;
+        
+        // LFO for wave motion
+        const lfo = this.audioContext.createOscillator();
+        const lfoGain = this.audioContext.createGain();
+        lfo.frequency.value = 0.1; // Very slow
+        lfoGain.gain.value = 0.1;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gain.gain);
+        lfo.start();
+        
+        whiteNoise.connect(lowpass);
+        lowpass.connect(gain);
+        gain.connect(this.masterGain);
+        whiteNoise.start();
+        
+        this.oscillators.push(whiteNoise, lfo);
+    }
+    
+    createWindSound() {
+        // Higher pitched noise for wind
+        const bufferSize = 2 * this.audioContext.sampleRate;
+        const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+        }
+        
+        const windNoise = this.audioContext.createBufferSource();
+        windNoise.buffer = noiseBuffer;
+        windNoise.loop = true;
+        
+        const bandpass = this.audioContext.createBiquadFilter();
+        bandpass.type = 'bandpass';
+        bandpass.frequency.value = 800;
+        bandpass.Q.value = 0.5;
+        
+        const gain = this.audioContext.createGain();
+        gain.gain.value = 0.05;
+        
+        // LFO for gusts
+        const lfo = this.audioContext.createOscillator();
+        const lfoGain = this.audioContext.createGain();
+        lfo.frequency.value = 0.05;
+        lfoGain.gain.value = 0.03;
+        lfo.connect(lfoGain);
+        lfoGain.connect(gain.gain);
+        lfo.start();
+        
+        windNoise.connect(bandpass);
+        bandpass.connect(gain);
+        gain.connect(this.masterGain);
+        windNoise.start();
+        
+        this.oscillators.push(windNoise, lfo);
+    }
+    
+    scheduleBirdCalls() {
+        const scheduleBird = () => {
+            if (!this.isPlaying) return;
+            
+            // Random bird chirp
+            const osc = this.audioContext.createOscillator();
+            const gain = this.audioContext.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = 800 + Math.random() * 400;
+            
+            gain.gain.value = 0;
+            gain.gain.setValueAtTime(0, this.audioContext.currentTime);
+            gain.gain.linearRampToValueAtTime(0.02, this.audioContext.currentTime + 0.05);
+            gain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + 0.2);
+            
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start();
+            osc.stop(this.audioContext.currentTime + 0.3);
+            
+            // Schedule next bird call
+            setTimeout(scheduleBird, 5000 + Math.random() * 15000);
+        };
+        
+        setTimeout(scheduleBird, 3000);
+    }
+    
+    setVolume(value) {
+        if (this.masterGain) {
+            this.masterGain.gain.value = value;
+        }
+    }
+    
+    stop() {
+        this.oscillators.forEach(osc => {
+            try { osc.stop(); } catch(e) {}
+        });
+        this.oscillators = [];
+        this.isPlaying = false;
+    }
+}
+
+const ambientAudio = new AmbientAudio();
+
+// ============================================
 // INITIALIZATION
 // ============================================
 
@@ -366,6 +534,7 @@ function init() {
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(200, playerHeight + 10, 100);
+    camera.lookAt(-50, 10, 0); // Look toward the island center
     
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1157,6 +1326,10 @@ function startGame() {
     document.getElementById('loading-screen').classList.add('hidden');
     gameState.isPlaying = true;
     controls.lock();
+    
+    // Start ambient audio
+    ambientAudio.init();
+    ambientAudio.start();
 }
 
 function onKeyDown(event) {
