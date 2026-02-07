@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Among Us: Island Edition</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+</head>
+<body>
+    <div id="game-container"></div>
+    
+    <!-- UI Overlays -->
+    <div id="start-screen" class="overlay">
+        <div class="panel">
+            <h1>🏝️ AMONG US</h1>
+            <h2>Island Edition</h2>
+            <p class="subtitle">Someone on the island is not who they claim to be...</p>
+            
+            <div class="settings">
+                <label>
+                    Your Name:
+                    <input type="text" id="player-name" value="Guest" maxlength="12">
+                </label>
+                <label>
+                    Players:
+                    <select id="player-count">
+                        <option value="6">6 Players</option>
+                        <option value="8" selected>8 Players</option>
+                        <option value="10">10 Players</option>
+                    </select>
+                </label>
+                <label>
+                    Impostors:
+                    <select id="impostor-count">
+                        <option value="1">1 Impostor</option>
+                        <option value="2" selected>2 Impostors</option>
+                    </select>
+                </label>
+            </div>
+            
+            <button id="start-btn" class="btn-primary">START GAME</button>
+            <button id="how-to-play-btn" class="btn-secondary">HOW TO PLAY</button>
+        </div>
+    </div>
+    
+    <div id="how-to-play" class="overlay hidden">
+        <div class="panel wide">
+            <h2>📋 How To Play</h2>
+            <div class="rules-grid">
+                <div class="rule-section">
+                    <h3>🟢 Crewmates</h3>
+                    <ul>
+                        <li>Complete all tasks to win</li>
+                        <li>Report dead bodies (R key)</li>
+                        <li>Call emergency meetings</li>
+                        <li>Vote out impostors</li>
+                        <li>Watch for suspicious behavior</li>
+                    </ul>
+                </div>
+                <div class="rule-section">
+                    <h3>🔴 Impostors</h3>
+                    <ul>
+                        <li>Kill crewmates (Q key when close)</li>
+                        <li>Use vents to travel (E key)</li>
+                        <li>Sabotage systems</li>
+                        <li>Blend in and deceive</li>
+                        <li>Don't get caught!</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="controls-section">
+                <h3>🎮 Controls</h3>
+                <p><strong>Move:</strong> WASD / Arrow Keys / Touch joystick</p>
+                <p><strong>Use/Task:</strong> E key / Use button</p>
+                <p><strong>Kill:</strong> Q key / Kill button (Impostor only)</p>
+                <p><strong>Report:</strong> R key / Report button</p>
+                <p><strong>Vent:</strong> E key on vent (Impostor only)</p>
+            </div>
+            <button id="close-how-to" class="btn-secondary">CLOSE</button>
+        </div>
+    </div>
+    
+    <div id="meeting-screen" class="overlay hidden">
+        <div class="meeting-panel">
+            <h2 id="meeting-title">🚨 EMERGENCY MEETING</h2>
+            <p id="meeting-subtitle">Who is the impostor?</p>
+            
+            <div id="voting-grid" class="voting-grid"></div>
+            
+            <div class="vote-info">
+                <p id="vote-timer">Voting ends in: 30s</p>
+                <p id="votes-cast">Votes cast: 0/8</p>
+            </div>
+            
+            <button id="skip-vote-btn" class="btn-secondary">SKIP VOTE</button>
+        </div>
+    </div>
+    
+    <div id="ejection-screen" class="overlay hidden">
+        <div class="ejection-panel">
+            <div id="ejected-character" class="ejected-sprite"></div>
+            <p id="ejection-text" class="ejection-text"></p>
+        </div>
+    </div>
+    
+    <div id="task-screen" class="overlay hidden">
+        <div class="task-panel">
+            <h3 id="task-title">Task</h3>
+            <div id="task-content"></div>
+            <button id="close-task" class="btn-secondary">CLOSE</button>
+        </div>
+    </div>
+    
+    <div id="game-over-screen" class="overlay hidden">
+        <div class="panel">
+            <h1 id="game-over-title">VICTORY</h1>
+            <p id="game-over-text"></p>
+            <div id="game-over-roles"></div>
+            <button id="play-again-btn" class="btn-primary">PLAY AGAIN</button>
+        </div>
+    </div>
+    
+    <!-- In-game HUD -->
+    <div id="game-hud" class="hidden">
+        <div id="task-bar">
+            <div id="task-progress" style="width: 0%"></div>
+        </div>
+        <div id="task-list-toggle" class="hud-btn">📋</div>
+        <div id="task-list" class="hidden">
+            <h4>Tasks</h4>
+            <ul id="task-items"></ul>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div id="action-buttons">
+            <button id="use-btn" class="action-btn hidden">USE (E)</button>
+            <button id="report-btn" class="action-btn hidden">REPORT (R)</button>
+            <button id="kill-btn" class="action-btn impostor-only hidden">KILL (Q)</button>
+            <button id="vent-btn" class="action-btn impostor-only hidden">VENT (E)</button>
+            <button id="sabotage-btn" class="action-btn impostor-only">⚠️ SABOTAGE</button>
+        </div>
+        
+        <!-- Mobile Joystick -->
+        <div id="joystick-zone"></div>
+    </div>
+    
+    <!-- Sabotage Menu -->
+    <div id="sabotage-menu" class="overlay hidden">
+        <div class="panel">
+            <h3>⚠️ SABOTAGE</h3>
+            <div class="sabotage-options">
+                <button class="sabotage-option" data-sabotage="lights">💡 Lights</button>
+                <button class="sabotage-option" data-sabotage="comms">📡 Comms</button>
+                <button class="sabotage-option" data-sabotage="reactor">☢️ Reactor</button>
+                <button class="sabotage-option" data-sabotage="o2">🫁 O2</button>
+            </div>
+            <button id="close-sabotage" class="btn-secondary">CANCEL</button>
+        </div>
+    </div>
+
+    <script src="js/characters.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

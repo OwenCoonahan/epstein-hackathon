@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Island - An Investigation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            background: #000;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 1s ease;
+        }
+        
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #loading-screen h1 {
+            color: #c41e3a;
+            font-size: 2.5rem;
+            letter-spacing: 0.5em;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+        }
+        
+        #loading-screen p {
+            color: #666;
+            font-size: 0.9rem;
+            max-width: 400px;
+            text-align: center;
+            line-height: 1.6;
+        }
+        
+        .loading-bar {
+            width: 300px;
+            height: 2px;
+            background: #222;
+            margin: 2rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading-bar::after {
+            content: '';
+            position: absolute;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #c41e3a, transparent);
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            to { left: 100%; }
+        }
+        
+        #start-btn {
+            margin-top: 2rem;
+            padding: 1rem 3rem;
+            background: transparent;
+            border: 1px solid #c41e3a;
+            color: #c41e3a;
+            font-family: inherit;
+            font-size: 0.9rem;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: none;
+        }
+        
+        #start-btn:hover {
+            background: #c41e3a;
+            color: #fff;
+        }
+        
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        #crosshair::before,
+        #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        #crosshair::before {
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        #crosshair::after {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        #crosshair.interact {
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+        
+        #crosshair.interact::before,
+        #crosshair.interact::after {
+            background: #c41e3a;
+        }
+        
+        #hud {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.75rem;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        #interaction-prompt {
+            position: fixed;
+            bottom: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(196, 30, 58, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        #interaction-prompt.visible {
+            opacity: 1;
+        }
+        
+        #dialogue-box {
+            position: fixed;
+            bottom: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 700px;
+            background: rgba(10, 10, 10, 0.95);
+            border: 1px solid #333;
+            padding: 1.5rem 2rem;
+            color: #ccc;
+            font-size: 1rem;
+            line-height: 1.6;
+            z-index: 200;
+            display: none;
+        }
+        
+        #dialogue-box.visible {
+            display: block;
+        }
+        
+        #dialogue-speaker {
+            color: #c41e3a;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        #dialogue-text {
+            margin-bottom: 1rem;
+        }
+        
+        #dialogue-continue {
+            color: #666;
+            font-size: 0.8rem;
+            text-align: right;
+        }
+        
+        #evidence-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 10, 10, 0.98);
+            border: 1px solid #c41e3a;
+            padding: 2rem;
+            max-width: 500px;
+            color: #ccc;
+            z-index: 300;
+            display: none;
+        }
+        
+        #evidence-popup.visible {
+            display: block;
+        }
+        
+        #evidence-popup h3 {
+            color: #c41e3a;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        #evidence-popup p {
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+        
+        #evidence-close {
+            color: #666;
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 1rem;
+        }
+        
+        #inventory {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.75rem;
+            text-align: right;
+            z-index: 100;
+        }
+        
+        #inventory h4 {
+            color: #c41e3a;
+            margin-bottom: 0.5rem;
+            letter-spacing: 0.1em;
+        }
+        
+        #inventory ul {
+            list-style: none;
+        }
+        
+        #inventory li {
+            margin: 0.25rem 0;
+        }
+        
+        #minimap {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #333;
+            z-index: 100;
+        }
+        
+        #minimap canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Mobile controls */
+        #mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 200px;
+            z-index: 150;
+            pointer-events: none;
+        }
+        
+        .joystick {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            pointer-events: auto;
+        }
+        
+        #joystick-move {
+            left: 30px;
+            bottom: 30px;
+        }
+        
+        #joystick-look {
+            right: 30px;
+            bottom: 30px;
+        }
+        
+        .joystick-knob {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        #mobile-interact {
+            position: absolute;
+            right: 30px;
+            bottom: 170px;
+            width: 60px;
+            height: 60px;
+            background: rgba(196, 30, 58, 0.5);
+            border: 2px solid #c41e3a;
+            border-radius: 50%;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            #mobile-controls {
+                display: block;
+            }
+            
+            #minimap {
+                width: 100px;
+                height: 100px;
+            }
+            
+            #hud {
+                bottom: 220px;
+            }
+        }
+        
+        /* Vignette effect */
+        #vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            background: radial-gradient(ellipse at center, transparent 0%, transparent 60%, rgba(0,0,0,0.4) 100%);
+        }
+        
+        /* Film grain overlay */
+        #grain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 51;
+            opacity: 0.05;
+            background-image: url('data:image/svg+xml,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)"/></svg>');
+        }
+        
+        /* Warning text */
+        #warning {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #c41e3a;
+            font-size: 0.8rem;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s;
+            z-index: 400;
+            background: rgba(0,0,0,0.9);
+            padding: 2rem;
+            border: 1px solid #c41e3a;
+            max-width: 400px;
+        }
+        
+        #warning.visible {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <h1>The Island</h1>
+        <div class="loading-bar"></div>
+        <p>An interactive investigation into one of the most notorious locations in modern history.</p>
+        <p style="margin-top: 1rem; color: #444; font-size: 0.75rem;">Based on publicly available information and aerial photography.</p>
+        <button id="start-btn">ENTER</button>
+    </div>
+    
+    <div id="game-container"></div>
+    
+    <div id="crosshair"></div>
+    <div id="vignette"></div>
+    <div id="grain"></div>
+    
+    <div id="hud">
+        <div id="location">Location: Beach - South Shore</div>
+        <div id="time">Time: 3:47 PM</div>
+        <div id="controls-hint">WASD - Move | Mouse - Look | E - Interact | Tab - Evidence</div>
+    </div>
+    
+    <div id="interaction-prompt">Press E to interact</div>
+    
+    <div id="dialogue-box">
+        <div id="dialogue-speaker">Unknown</div>
+        <div id="dialogue-text"></div>
+        <div id="dialogue-continue">Press SPACE or click to continue</div>
+    </div>
+    
+    <div id="evidence-popup">
+        <h3 id="evidence-title">Evidence Found</h3>
+        <p id="evidence-content"></p>
+        <div id="evidence-close">Press ESC or click to close</div>
+    </div>
+    
+    <div id="inventory">
+        <h4>Evidence Collected</h4>
+        <ul id="evidence-list"></ul>
+    </div>
+    
+    <div id="minimap">
+        <canvas id="minimap-canvas"></canvas>
+    </div>
+    
+    <div id="mobile-controls">
+        <div id="joystick-move" class="joystick">
+            <div class="joystick-knob"></div>
+        </div>
+        <div id="joystick-look" class="joystick">
+            <div class="joystick-knob"></div>
+        </div>
+        <div id="mobile-interact">E</div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Audio files (add your own)
+audio/*.mp3
+audio/*.wav
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
