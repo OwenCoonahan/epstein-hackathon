@@ -285,21 +285,12 @@ class AmongUsGame {
     createPlayerSprite(player) {
         const graphics = this.scene.add.graphics();
         
-        // Bean body
-        graphics.fillStyle(player.color, 1);
-        graphics.fillEllipse(0, 5, 30, 40);
-        
-        // Visor
-        graphics.fillStyle(0x8ecae6, 1);
-        graphics.fillEllipse(10, -5, 18, 12);
-        
-        // Backpack
-        graphics.fillStyle(player.color, 1);
-        graphics.fillRoundedRect(-20, -5, 10, 25, 3);
+        // Use the enhanced character drawing from characters.js
+        drawCharacterSprite(graphics, player, 1);
         
         // Create texture from graphics
-        const key = `player_${player.id}`;
-        graphics.generateTexture(key, 50, 60);
+        const key = `player_${player.id}_${Date.now()}`;
+        graphics.generateTexture(key, 70, 90);
         graphics.destroy();
         
         // Create sprite
@@ -307,14 +298,18 @@ class AmongUsGame {
         player.sprite.setOrigin(0.5, 0.7);
         player.sprite.setDepth(10);
         
-        // Name text
-        player.nameText = this.scene.add.text(player.x, player.y + 35, player.name, {
-            fontSize: '12px',
+        // Name text with character-specific styling
+        const nameStyle = {
+            fontSize: '11px',
             color: '#ffffff',
+            fontFamily: '"Arial Black", Gadget, sans-serif',
             fontStyle: 'bold',
             stroke: '#000000',
-            strokeThickness: 2
-        });
+            strokeThickness: 3,
+            shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 2, fill: true }
+        };
+        
+        player.nameText = this.scene.add.text(player.x, player.y + 40, player.name, nameStyle);
         player.nameText.setOrigin(0.5);
         player.nameText.setDepth(11);
     }
@@ -489,7 +484,9 @@ class AmongUsGame {
         this.taskList.innerHTML = '';
         this.localPlayer.tasks.forEach(task => {
             const li = document.createElement('li');
-            li.textContent = task.name;
+            // Use funny task name if available
+            const funnyName = FUNNY_TASK_NAMES && FUNNY_TASK_NAMES[task.name] ? FUNNY_TASK_NAMES[task.name] : task.name;
+            li.textContent = funnyName;
             if (task.completed) li.classList.add('completed');
             this.taskList.appendChild(li);
         });
@@ -545,7 +542,7 @@ class AmongUsGame {
             this.localPlayer.sprite.x = newX;
             this.localPlayer.sprite.y = newY;
             this.localPlayer.nameText.x = newX;
-            this.localPlayer.nameText.y = newY + 35;
+            this.localPlayer.nameText.y = newY + 40;
             
             // Flip sprite based on direction
             if (dx !== 0) {
@@ -764,7 +761,7 @@ class AmongUsGame {
                     this.localPlayer.sprite.x = targetVent.x;
                     this.localPlayer.sprite.y = targetVent.y;
                     this.localPlayer.nameText.x = targetVent.x;
-                    this.localPlayer.nameText.y = targetVent.y + 35;
+                    this.localPlayer.nameText.y = targetVent.y + 40;
                 }
                 menu.remove();
             });
@@ -791,27 +788,23 @@ class AmongUsGame {
             color: victim.color,
             x: victim.x,
             y: victim.y,
-            sprite: null
+            sprite: null,
+            boneSprite: null
         };
         
-        // Create body sprite
+        // Create proper Among Us style dead body sprite
         const graphics = this.scene.add.graphics();
-        graphics.fillStyle(victim.color, 1);
-        graphics.fillEllipse(0, 0, 30, 20);
-        const key = `body_${victim.id}`;
-        graphics.generateTexture(key, 40, 30);
+        drawDeadBody(graphics, victim, 1);
+        const key = `body_${victim.id}_${Date.now()}`;
+        graphics.generateTexture(key, 60, 40);
         graphics.destroy();
         
         body.sprite = this.scene.add.sprite(victim.x, victim.y, key);
         body.sprite.setDepth(5);
         
-        // Bone sprite
-        const bone = this.scene.add.text(victim.x + 15, victim.y - 5, '🦴', { fontSize: '16px' });
-        bone.setDepth(6);
-        
         this.deadBodies.push(body);
         
-        // Kill animation
+        // Show kill message if player did the kill
         if (killer.id === this.localPlayer.id) {
             // Teleport killer to victim position
             killer.x = victim.x;
@@ -819,8 +812,39 @@ class AmongUsGame {
             killer.sprite.x = victim.x;
             killer.sprite.y = victim.y;
             killer.nameText.x = victim.x;
-            killer.nameText.y = victim.y + 35;
+            killer.nameText.y = victim.y + 40;
+            
+            // Show kill message briefly
+            const killMsg = getKillMessage(killer, victim);
+            this.showKillMessage(killMsg);
         }
+        
+        // Kill flash effect
+        if (this.localPlayer.id === killer.id || this.localPlayer.id === victim.id) {
+            this.scene.cameras.main.flash(200, 255, 0, 0, true);
+        }
+    }
+    
+    showKillMessage(message) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'kill-message';
+        msgDiv.textContent = message;
+        msgDiv.style.cssText = `
+            position: fixed;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            z-index: 1000;
+            animation: fadeInOut 2s forwards;
+        `;
+        document.body.appendChild(msgDiv);
+        setTimeout(() => msgDiv.remove(), 2000);
     }
     
     reportBody(reporter, body) {
@@ -852,7 +876,7 @@ class AmongUsGame {
             player.sprite.x = spawn.x;
             player.sprite.y = spawn.y;
             player.nameText.x = spawn.x;
-            player.nameText.y = spawn.y + 35;
+            player.nameText.y = spawn.y + 40;
             player.sprite.setVisible(true);
             player.nameText.setVisible(true);
             player.inVent = false;
@@ -1022,7 +1046,13 @@ class AmongUsGame {
         
         if (tie || !ejected || votes === 0) {
             ejectedChar.style.display = 'none';
-            ejectionText.textContent = 'No one was ejected. (Skipped)';
+            ejectionText.innerHTML = `
+                <span style="font-size: 1.5em;">🤷</span><br>
+                No one was ejected.<br>
+                <span style="color: #888; font-size: 0.8em;">
+                    (Everyone was too busy pointing fingers)
+                </span>
+            `;
         } else {
             ejectedChar.style.display = 'block';
             ejectedChar.style.backgroundColor = hexToCSS(ejected.color);
@@ -1039,12 +1069,15 @@ class AmongUsGame {
             const wasImpostor = ejected.isImpostor;
             const impostorCount = this.players.filter(p => p.isImpostor && !p.isDead).length;
             
+            // Get custom ejection message
+            const customMsg = getEjectionMessage(ejected, wasImpostor);
+            
             ejectionText.innerHTML = `
-                <strong>${ejected.name}</strong> was ejected.<br>
-                <span style="color: ${wasImpostor ? '#ff4757' : '#2ed573'}">
-                    ${wasImpostor ? 'They were An Impostor.' : 'They were not An Impostor.'}
+                <strong style="font-size: 1.3em;">${customMsg}</strong><br><br>
+                <span style="color: ${wasImpostor ? '#ff4757' : '#2ed573'}; font-size: 1.2em;">
+                    ${wasImpostor ? '🔴 They were An Impostor.' : '🟢 They were not An Impostor.'}
                 </span><br>
-                <span style="font-size: 0.8em; color: #888;">
+                <span style="font-size: 0.9em; color: #888; margin-top: 10px; display: block;">
                     ${impostorCount} Impostor${impostorCount !== 1 ? 's' : ''} remain${impostorCount === 1 ? 's' : ''}.
                 </span>
             `;
@@ -1052,10 +1085,17 @@ class AmongUsGame {
         
         ejectionScreen.classList.remove('hidden');
         
+        // Play dramatic sound effect (if available)
+        this.playEjectionSound();
+        
         setTimeout(() => {
             ejectionScreen.classList.add('hidden');
             this.resumeGame();
         }, 5000);
+    }
+    
+    playEjectionSound() {
+        // Future: Add sound effects
     }
     
     resumeGame() {
@@ -1088,7 +1128,7 @@ class AmongUsGame {
             bot.sprite.x = newX;
             bot.sprite.y = newY;
             bot.nameText.x = newX;
-            bot.nameText.y = newY + 35;
+            bot.nameText.y = newY + 40;
             
             if (vx !== 0) {
                 bot.sprite.setFlipX(vx < 0);
@@ -1102,7 +1142,7 @@ class AmongUsGame {
         bot.sprite.x = targetVent.x;
         bot.sprite.y = targetVent.y;
         bot.nameText.x = targetVent.x;
-        bot.nameText.y = targetVent.y + 35;
+        bot.nameText.y = targetVent.y + 40;
     }
     
     openSabotageMenu() {

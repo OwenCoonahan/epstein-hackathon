@@ -8,11 +8,11 @@ import { Sky } from 'three/addons/objects/Sky.js';
 // ============================================
 
 const CONFIG = {
-    moveSpeed: 50,
+    moveSpeed: 250, // Increased 5x for snappy movement
     lookSpeed: 0.002,
     interactionDistance: 15,
     gravity: -30,
-    jumpHeight: 10,
+    jumpHeight: 12,
     dayDuration: 300, // seconds for full day cycle
     startTime: 0.6, // Start at late afternoon (0-1)
 };
@@ -32,6 +32,9 @@ const gameState = {
     currentDialogue: null,
     dialogueIndex: 0,
     canInteract: null,
+    inInterior: null, // Track which building interior player is in
+    phoneRinging: false,
+    phoneFound: false,
 };
 
 // ============================================
@@ -50,6 +53,11 @@ let raycaster = new THREE.Raycaster();
 let interactables = [];
 let npcs = [];
 let minimapCtx;
+let terrainMesh = null; // For ground collision
+let interiorScenes = {}; // Store interior scene objects
+let exteriorObjects = []; // Store exterior objects to hide/show
+let phoneAudioContext = null;
+let phoneOscillator = null;
 
 // ============================================
 // ISLAND LAYOUT DATA
@@ -354,6 +362,233 @@ The remaining pages are blank.`,
 ];
 
 // ============================================
+// BUILDING INTERIORS DATA
+// ============================================
+
+const INTERIOR_DATA = {
+    temple: {
+        name: 'The Temple',
+        size: { w: 40, h: 20, d: 40 },
+        color: 0x1a1a2e,
+        rooms: [
+            { name: 'Main Chamber', offset: { x: 0, z: 0 }, size: { w: 30, h: 18, d: 30 } },
+            { name: 'Underground Passage', offset: { x: 0, z: -20 }, size: { w: 10, h: 8, d: 15 } },
+        ],
+        objects: [
+            { type: 'altar', position: { x: 0, y: 0, z: -10 } },
+            { type: 'statue', position: { x: -10, y: 0, z: 5 } },
+            { type: 'statue', position: { x: 10, y: 0, z: 5 } },
+            { type: 'candles', position: { x: -8, y: 0, z: -8 } },
+            { type: 'candles', position: { x: 8, y: 0, z: -8 } },
+            { type: 'phone', position: { x: 12, y: 1, z: 10 }, isEasterEgg: true },
+        ],
+        evidence: {
+            id: 'ritual_notes',
+            name: 'Ritual Notes',
+            position: { x: -5, y: 1, z: -12 },
+            content: `Handwritten notes on ceremonial procedures:
+            
+"The ceremony begins at midnight.
+All participants must wear the robes.
+No recording devices permitted.
+What happens here stays here.
+The owl watches. The owl knows."
+
+Several pages are torn out.`,
+        },
+    },
+    main_mansion: {
+        name: 'Main Residence',
+        size: { w: 80, h: 15, d: 60 },
+        color: 0x2a2a2a,
+        rooms: [
+            { name: 'Grand Foyer', offset: { x: 0, z: 20 }, size: { w: 40, h: 12, d: 20 } },
+            { name: 'Living Room', offset: { x: -25, z: 0 }, size: { w: 30, h: 12, d: 25 } },
+            { name: 'Office', offset: { x: 25, z: 0 }, size: { w: 25, h: 12, d: 20 } },
+            { name: 'Dining Hall', offset: { x: 0, z: -15 }, size: { w: 35, h: 12, d: 20 } },
+        ],
+        objects: [
+            { type: 'desk', position: { x: 25, y: 0, z: -5 } },
+            { type: 'couch', position: { x: -25, y: 0, z: 5 } },
+            { type: 'painting', position: { x: -30, y: 5, z: 0 } },
+            { type: 'table', position: { x: 0, y: 0, z: -15 } },
+            { type: 'safe', position: { x: 30, y: 0, z: -8 } },
+        ],
+        evidence: {
+            id: 'client_ledger',
+            name: 'Client Ledger',
+            position: { x: 28, y: 1, z: -3 },
+            content: `Financial ledger with coded entries:
+
+"DP-001: Services rendered - $500,000
+ HW-042: Annual contribution - $2,000,000
+ PR-017: Special arrangement - $750,000
+ GV-008: Campaign support - $1,500,000"
+ 
+Note at bottom: "All clients vetted. 
+Full discretion guaranteed. 
+No paper trail."`,
+        },
+    },
+    guest_house_1: {
+        name: 'Guest Villa A',
+        size: { w: 35, h: 12, d: 30 },
+        color: 0x3a3a3a,
+        rooms: [
+            { name: 'Suite', offset: { x: 0, z: 0 }, size: { w: 30, h: 10, d: 25 } },
+        ],
+        objects: [
+            { type: 'bed', position: { x: 0, y: 0, z: -8 } },
+            { type: 'nightstand', position: { x: -8, y: 0, z: -8 } },
+            { type: 'wardrobe', position: { x: 10, y: 0, z: -10 } },
+        ],
+        evidence: null,
+    },
+    guest_house_2: {
+        name: 'Guest Villa B',
+        size: { w: 30, h: 12, d: 25 },
+        color: 0x3a3a3a,
+        rooms: [
+            { name: 'Suite', offset: { x: 0, z: 0 }, size: { w: 25, h: 10, d: 20 } },
+        ],
+        objects: [
+            { type: 'bed', position: { x: 0, y: 0, z: -5 } },
+            { type: 'desk', position: { x: -8, y: 0, z: 5 } },
+        ],
+        evidence: null,
+    },
+};
+
+// ============================================
+// PHONE EASTER EGG AUDIO
+// ============================================
+
+class PhoneRinger {
+    constructor() {
+        this.audioContext = null;
+        this.isRinging = false;
+        this.oscillators = [];
+        this.gainNode = null;
+    }
+    
+    init() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            this.gainNode = this.audioContext.createGain();
+            this.gainNode.gain.value = 0;
+            this.gainNode.connect(this.audioContext.destination);
+        } catch(e) {
+            console.log('Phone audio not available');
+        }
+    }
+    
+    startRinging() {
+        if (!this.audioContext || this.isRinging) return;
+        
+        if (this.audioContext.state === 'suspended') {
+            this.audioContext.resume();
+        }
+        
+        this.isRinging = true;
+        this.ring();
+    }
+    
+    ring() {
+        if (!this.isRinging) return;
+        
+        // Classic phone ring - two tones
+        const osc1 = this.audioContext.createOscillator();
+        const osc2 = this.audioContext.createOscillator();
+        const ringGain = this.audioContext.createGain();
+        
+        osc1.frequency.value = 440; // A4
+        osc2.frequency.value = 480; // Slightly higher
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        
+        ringGain.gain.value = 0.15;
+        
+        osc1.connect(ringGain);
+        osc2.connect(ringGain);
+        ringGain.connect(this.audioContext.destination);
+        
+        const now = this.audioContext.currentTime;
+        
+        // Ring pattern: ring-ring, pause, ring-ring
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.4);
+        osc2.stop(now + 0.4);
+        
+        // Second ring
+        const osc3 = this.audioContext.createOscillator();
+        const osc4 = this.audioContext.createOscillator();
+        const ringGain2 = this.audioContext.createGain();
+        
+        osc3.frequency.value = 440;
+        osc4.frequency.value = 480;
+        osc3.type = 'sine';
+        osc4.type = 'sine';
+        ringGain2.gain.value = 0.15;
+        
+        osc3.connect(ringGain2);
+        osc4.connect(ringGain2);
+        ringGain2.connect(this.audioContext.destination);
+        
+        osc3.start(now + 0.5);
+        osc4.start(now + 0.5);
+        osc3.stop(now + 0.9);
+        osc4.stop(now + 0.9);
+        
+        // Schedule next ring cycle
+        setTimeout(() => {
+            if (this.isRinging) this.ring();
+        }, 3000);
+    }
+    
+    stopRinging() {
+        this.isRinging = false;
+    }
+    
+    playAnswerSound() {
+        if (!this.audioContext) return;
+        
+        // Creepy voice-like sound
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        const filter = this.audioContext.createBiquadFilter();
+        
+        osc.type = 'sawtooth';
+        osc.frequency.value = 150;
+        
+        filter.type = 'lowpass';
+        filter.frequency.value = 800;
+        
+        gain.gain.value = 0.1;
+        
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.audioContext.destination);
+        
+        const now = this.audioContext.currentTime;
+        
+        // "Jeff's calling" effect - warbling
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.linearRampToValueAtTime(200, now + 0.3);
+        osc.frequency.linearRampToValueAtTime(120, now + 0.6);
+        osc.frequency.linearRampToValueAtTime(180, now + 1);
+        
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + 1.5);
+        
+        osc.start(now);
+        osc.stop(now + 1.5);
+    }
+}
+
+const phoneRinger = new PhoneRinger();
+
+// ============================================
 // AUDIO SYSTEM
 // ============================================
 
@@ -533,8 +768,9 @@ function init() {
     
     // Camera
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-    camera.position.set(200, playerHeight + 10, 100);
-    camera.lookAt(-50, 10, 0); // Look toward the island center
+    // Start player on the beach near the dock, looking toward the island
+    camera.position.set(150, playerHeight + 5, 50);
+    camera.lookAt(0, playerHeight, 0); // Look toward the island center
     
     // Renderer
     renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -559,7 +795,11 @@ function init() {
     createNPCs();
     createEvidence();
     createLighting();
+    createBuildingInteriors();
     setupMinimap();
+    
+    // Init phone easter egg
+    phoneRinger.init();
     
     // Event listeners
     setupEventListeners();
@@ -695,46 +935,158 @@ function createIsland() {
     beach.position.y = -1;
     beach.receiveShadow = true;
     scene.add(beach);
+    exteriorObjects.push(beach);
     
-    // Create main terrain (elevated center)
-    const terrainGeometry = new THREE.ExtrudeGeometry(islandShape, {
-        depth: 15,
-        bevelEnabled: true,
-        bevelThickness: 5,
-        bevelSize: -15,
-        bevelSegments: 2
-    });
-    
-    const terrainMaterial = new THREE.MeshStandardMaterial({
+    // Create SOLID FLAT WALKABLE GROUND for the entire island
+    const groundGeometry = new THREE.PlaneGeometry(500, 400, 50, 50);
+    const groundMaterial = new THREE.MeshStandardMaterial({
         color: 0x3d5c3d,
         roughness: 0.85,
         metalness: 0
     });
     
-    const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+    // Displace vertices based on terrain height for visual effect
+    const positions = groundGeometry.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        const z = positions.getY(i); // Y in 2D becomes Z in 3D
+        
+        // Check if inside island bounds (rough)
+        const distFromCenter = Math.sqrt(x * x + z * z);
+        if (distFromCenter < 220) {
+            const height = getTerrainHeight(x, z);
+            positions.setZ(i, height);
+        } else {
+            positions.setZ(i, -5); // Below water
+        }
+    }
+    groundGeometry.computeVertexNormals();
+    
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    exteriorObjects.push(ground);
+    terrainMesh = ground;
+    
+    // Create main terrain (elevated center) - for visual depth
+    const terrainGeometry = new THREE.ExtrudeGeometry(islandShape, {
+        depth: 8,
+        bevelEnabled: true,
+        bevelThickness: 3,
+        bevelSize: -10,
+        bevelSegments: 2
+    });
+    
+    const terrainMat = new THREE.MeshStandardMaterial({
+        color: 0x3d5c3d,
+        roughness: 0.85,
+        metalness: 0
+    });
+    
+    const terrain = new THREE.Mesh(terrainGeometry, terrainMat);
     terrain.rotation.x = -Math.PI / 2;
-    terrain.position.y = 0;
+    terrain.position.y = -5;
     terrain.receiveShadow = true;
     terrain.castShadow = true;
     scene.add(terrain);
+    exteriorObjects.push(terrain);
     
-    // Add some terrain variation with hills
+    // Add visible hills as very smooth mounds - matching getTerrainHeight values
     const hillPositions = [
-        { x: -180, z: -80, height: 25, radius: 40 }, // Temple hill
-        { x: 50, z: 0, height: 10, radius: 60 },     // Main mansion area
-        { x: -80, z: 40, height: 15, radius: 35 },   // Secondary hill
-        { x: 150, z: 30, height: 8, radius: 30 },    // East area
+        { x: -180, z: -80, height: 20, radius: 50 },  // Temple hill
+        { x: -80, z: 40, height: 8, radius: 45 },     // Secondary area
     ];
     
     hillPositions.forEach(hill => {
-        const hillGeometry = new THREE.ConeGeometry(hill.radius, hill.height, 16);
-        const hillMesh = new THREE.Mesh(hillGeometry, terrainMaterial.clone());
+        // Use sphere geometry cut in half for ultra-smooth hills
+        const hillGeometry = new THREE.SphereGeometry(hill.radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        const hillMesh = new THREE.Mesh(hillGeometry, terrainMat.clone());
         hillMesh.material.color.setHex(0x2d4c2d);
-        hillMesh.position.set(hill.x, hill.height / 2, hill.z);
+        hillMesh.scale.y = hill.height / hill.radius;
+        hillMesh.position.set(hill.x, 0, hill.z);
         hillMesh.receiveShadow = true;
         hillMesh.castShadow = true;
         scene.add(hillMesh);
+        exteriorObjects.push(hillMesh);
     });
+}
+
+// ============================================
+// TERRAIN HEIGHT
+// ============================================
+
+function getTerrainHeight(x, z) {
+    // Base terrain - gentle rolling hills that are easy to walk on
+    // Main interior is relatively flat with some elevation changes
+    
+    let height = 2; // Base ground level above sea
+    
+    // Only the temple is on a significant hill
+    // Other areas are gently elevated for variety
+    const hillPositions = [
+        { x: -180, z: -80, height: 20, radius: 50 },   // Temple hill - main elevation
+        { x: 50, z: 0, height: 5, radius: 80 },        // Main mansion - very gentle
+        { x: -80, z: 40, height: 8, radius: 45 },      // Secondary area
+        { x: 150, z: 30, height: 4, radius: 40 },      // East area - gentle
+        { x: 0, z: 20, height: 3, radius: 100 },       // Central flat area
+    ];
+    
+    hillPositions.forEach(hill => {
+        const dx = x - hill.x;
+        const dz = z - hill.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        
+        if (dist < hill.radius) {
+            // Very smooth cosine-based hill profile for gentle slopes
+            const t = dist / hill.radius;
+            const hillHeight = hill.height * 0.5 * (1 + Math.cos(Math.PI * t));
+            height = Math.max(height, hillHeight);
+        }
+    });
+    
+    // Flatten areas around buildings so they're easy to approach
+    ISLAND_LAYOUT.buildings.forEach(b => {
+        const dx = x - b.position.x;
+        const dz = z - b.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        
+        // Within 30 units of any building, flatten significantly
+        if (dist < 30) {
+            const buildingBaseHeight = b.id === 'temple' ? 20 : 3;
+            const t = dist / 30;
+            height = buildingBaseHeight * (1 - t) + height * t;
+        }
+    });
+    
+    // Ensure paths are very flat and walkable
+    ISLAND_LAYOUT.paths.forEach(path => {
+        // Check distance from path line, not just center
+        const ax = path.from.x, az = path.from.z;
+        const bx = path.to.x, bz = path.to.z;
+        const px = x, pz = z;
+        
+        // Project point onto line segment
+        const abx = bx - ax, abz = bz - az;
+        const apx = px - ax, apz = pz - az;
+        const t = Math.max(0, Math.min(1, (apx * abx + apz * abz) / (abx * abx + abz * abz)));
+        const nearestX = ax + t * abx;
+        const nearestZ = az + t * abz;
+        
+        const dx = px - nearestX;
+        const dz = pz - nearestZ;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        
+        // Near paths, clamp height to walkable level
+        if (dist < 15) {
+            const pathBaseHeight = 3; // Paths at gentle elevation
+            const blend = dist / 15;
+            height = pathBaseHeight * (1 - blend) + height * blend;
+        }
+    });
+    
+    return Math.max(0, height);
 }
 
 // ============================================
@@ -926,6 +1278,7 @@ function createGenericBuilding(group, data) {
     building.castShadow = true;
     building.receiveShadow = true;
     group.add(building);
+    exteriorObjects.push(building);
     
     // Roof
     const roofGeometry = new THREE.BoxGeometry(data.size.w + 2, 1, data.size.d + 2);
@@ -938,6 +1291,7 @@ function createGenericBuilding(group, data) {
     roof.position.y = data.size.h + 0.5;
     roof.castShadow = true;
     group.add(roof);
+    exteriorObjects.push(roof);
     
     // Windows
     const windowGeometry = new THREE.BoxGeometry(2, 3, 0.2);
@@ -958,22 +1312,505 @@ function createGenericBuilding(group, data) {
             data.size.d / 2 + 0.1
         );
         group.add(win);
+        exteriorObjects.push(win);
         
         const winBack = win.clone();
         winBack.position.z = -data.size.d / 2 - 0.1;
         group.add(winBack);
+        exteriorObjects.push(winBack);
     }
     
-    // Door
-    const doorGeometry = new THREE.BoxGeometry(3, 5, 0.2);
+    // Door - make it a door zone for entering
+    const doorGeometry = new THREE.BoxGeometry(4, 6, 1);
     const doorMaterial = new THREE.MeshStandardMaterial({
         color: 0x4a3728,
         roughness: 0.6,
-        metalness: 0
+        metalness: 0,
+        emissive: 0x221100,
+        emissiveIntensity: 0.2
     });
     const door = new THREE.Mesh(doorGeometry, doorMaterial);
-    door.position.set(0, 2.5, data.size.d / 2 + 0.1);
+    door.position.set(0, 3, data.size.d / 2 + 0.5);
+    door.userData = {
+        type: 'door',
+        buildingId: data.id,
+        buildingName: data.name,
+    };
     group.add(door);
+    interactables.push(door);
+}
+
+// ============================================
+// BUILDING INTERIORS
+// ============================================
+
+function createBuildingInteriors() {
+    Object.keys(INTERIOR_DATA).forEach(buildingId => {
+        const data = INTERIOR_DATA[buildingId];
+        const interiorGroup = new THREE.Group();
+        interiorGroup.visible = false;
+        interiorGroup.userData.buildingId = buildingId;
+        
+        // Create floor
+        const floorGeometry = new THREE.PlaneGeometry(data.size.w, data.size.d);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+            color: buildingId === 'temple' ? 0x1a1a2e : 0x4a3a2a,
+            roughness: 0.8,
+            side: THREE.DoubleSide
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = 0.1;
+        floor.receiveShadow = true;
+        interiorGroup.add(floor);
+        
+        // Create walls
+        const wallMaterial = new THREE.MeshStandardMaterial({
+            color: data.color,
+            roughness: 0.9,
+            side: THREE.DoubleSide
+        });
+        
+        // Four walls
+        const wallHeight = data.size.h;
+        
+        // Front wall with door opening
+        const frontWallLeft = new THREE.Mesh(
+            new THREE.BoxGeometry(data.size.w / 2 - 3, wallHeight, 0.5),
+            wallMaterial
+        );
+        frontWallLeft.position.set(-data.size.w / 4 - 1.5, wallHeight / 2, data.size.d / 2);
+        interiorGroup.add(frontWallLeft);
+        
+        const frontWallRight = new THREE.Mesh(
+            new THREE.BoxGeometry(data.size.w / 2 - 3, wallHeight, 0.5),
+            wallMaterial
+        );
+        frontWallRight.position.set(data.size.w / 4 + 1.5, wallHeight / 2, data.size.d / 2);
+        interiorGroup.add(frontWallRight);
+        
+        // Door frame above
+        const doorTop = new THREE.Mesh(
+            new THREE.BoxGeometry(6, wallHeight - 7, 0.5),
+            wallMaterial
+        );
+        doorTop.position.set(0, wallHeight - (wallHeight - 7) / 2, data.size.d / 2);
+        interiorGroup.add(doorTop);
+        
+        // Back wall
+        const backWall = new THREE.Mesh(
+            new THREE.BoxGeometry(data.size.w, wallHeight, 0.5),
+            wallMaterial
+        );
+        backWall.position.set(0, wallHeight / 2, -data.size.d / 2);
+        interiorGroup.add(backWall);
+        
+        // Left wall
+        const leftWall = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, wallHeight, data.size.d),
+            wallMaterial
+        );
+        leftWall.position.set(-data.size.w / 2, wallHeight / 2, 0);
+        interiorGroup.add(leftWall);
+        
+        // Right wall
+        const rightWall = new THREE.Mesh(
+            new THREE.BoxGeometry(0.5, wallHeight, data.size.d),
+            wallMaterial
+        );
+        rightWall.position.set(data.size.w / 2, wallHeight / 2, 0);
+        interiorGroup.add(rightWall);
+        
+        // Ceiling
+        const ceiling = new THREE.Mesh(
+            new THREE.PlaneGeometry(data.size.w, data.size.d),
+            new THREE.MeshStandardMaterial({ color: 0x222222, side: THREE.DoubleSide })
+        );
+        ceiling.rotation.x = Math.PI / 2;
+        ceiling.position.y = wallHeight;
+        interiorGroup.add(ceiling);
+        
+        // Add interior objects
+        data.objects.forEach(obj => {
+            createInteriorObject(interiorGroup, obj, buildingId);
+        });
+        
+        // Add interior evidence
+        if (data.evidence) {
+            createInteriorEvidence(interiorGroup, data.evidence);
+        }
+        
+        // Exit door zone
+        const exitZone = new THREE.Mesh(
+            new THREE.BoxGeometry(5, 7, 2),
+            new THREE.MeshBasicMaterial({ visible: false })
+        );
+        exitZone.position.set(0, 3.5, data.size.d / 2 + 1);
+        exitZone.userData = {
+            type: 'exit',
+            buildingId: buildingId,
+        };
+        interiorGroup.add(exitZone);
+        interactables.push(exitZone);
+        
+        // Interior lighting
+        const interiorLight = new THREE.PointLight(
+            buildingId === 'temple' ? 0xff6600 : 0xffffee,
+            1,
+            50
+        );
+        interiorLight.position.set(0, wallHeight - 2, 0);
+        interiorLight.castShadow = true;
+        interiorGroup.add(interiorLight);
+        
+        // Extra lights for temple
+        if (buildingId === 'temple') {
+            const candleLight1 = new THREE.PointLight(0xff4400, 0.5, 20);
+            candleLight1.position.set(-8, 3, -8);
+            interiorGroup.add(candleLight1);
+            
+            const candleLight2 = new THREE.PointLight(0xff4400, 0.5, 20);
+            candleLight2.position.set(8, 3, -8);
+            interiorGroup.add(candleLight2);
+        }
+        
+        interiorScenes[buildingId] = interiorGroup;
+        scene.add(interiorGroup);
+    });
+}
+
+function createInteriorObject(group, objData, buildingId) {
+    let mesh;
+    
+    switch (objData.type) {
+        case 'altar':
+            // Stone altar
+            const altarGeo = new THREE.BoxGeometry(8, 3, 4);
+            const altarMat = new THREE.MeshStandardMaterial({
+                color: 0x444444,
+                roughness: 0.7
+            });
+            mesh = new THREE.Mesh(altarGeo, altarMat);
+            mesh.position.set(objData.position.x, 1.5, objData.position.z);
+            
+            // Cloth on top
+            const cloth = new THREE.Mesh(
+                new THREE.BoxGeometry(9, 0.2, 5),
+                new THREE.MeshStandardMaterial({ color: 0x880000 })
+            );
+            cloth.position.y = 1.6;
+            mesh.add(cloth);
+            break;
+            
+        case 'statue':
+            // Owl-like statue
+            const statueGeo = new THREE.ConeGeometry(1.5, 6, 4);
+            const statueMat = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            mesh = new THREE.Mesh(statueGeo, statueMat);
+            mesh.position.set(objData.position.x, 3, objData.position.z);
+            break;
+            
+        case 'candles':
+            // Candle cluster
+            const candleGroup = new THREE.Group();
+            for (let i = 0; i < 5; i++) {
+                const candle = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.1, 0.1, 1 + Math.random()),
+                    new THREE.MeshStandardMaterial({ color: 0xeeeeee })
+                );
+                candle.position.set(
+                    (Math.random() - 0.5) * 1.5,
+                    0.5,
+                    (Math.random() - 0.5) * 1.5
+                );
+                candleGroup.add(candle);
+                
+                // Flame
+                const flame = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.08, 0.3, 8),
+                    new THREE.MeshBasicMaterial({ color: 0xff6600 })
+                );
+                flame.position.y = candle.position.y + 0.6;
+                flame.position.x = candle.position.x;
+                flame.position.z = candle.position.z;
+                candleGroup.add(flame);
+            }
+            candleGroup.position.set(objData.position.x, 0, objData.position.z);
+            mesh = candleGroup;
+            break;
+            
+        case 'phone':
+            // Ringing phone - Easter egg!
+            const phoneGeo = new THREE.BoxGeometry(0.8, 0.3, 0.4);
+            const phoneMat = new THREE.MeshStandardMaterial({
+                color: 0x111111,
+                roughness: 0.5
+            });
+            mesh = new THREE.Mesh(phoneGeo, phoneMat);
+            mesh.position.set(objData.position.x, objData.position.y, objData.position.z);
+            mesh.userData = {
+                type: 'phone',
+                isEasterEgg: true,
+                name: 'Ringing Phone',
+            };
+            interactables.push(mesh);
+            
+            // Add glow
+            const phoneGlow = new THREE.Mesh(
+                new THREE.SphereGeometry(1, 16, 12),
+                new THREE.MeshBasicMaterial({
+                    color: 0x00ff00,
+                    transparent: true,
+                    opacity: 0.2
+                })
+            );
+            mesh.add(phoneGlow);
+            break;
+            
+        case 'desk':
+            const deskGeo = new THREE.BoxGeometry(5, 2.5, 3);
+            const deskMat = new THREE.MeshStandardMaterial({
+                color: 0x5c4033,
+                roughness: 0.6
+            });
+            mesh = new THREE.Mesh(deskGeo, deskMat);
+            mesh.position.set(objData.position.x, 1.25, objData.position.z);
+            break;
+            
+        case 'couch':
+            const couchGroup = new THREE.Group();
+            const couchBase = new THREE.Mesh(
+                new THREE.BoxGeometry(6, 1.5, 3),
+                new THREE.MeshStandardMaterial({ color: 0x4a2020 })
+            );
+            couchBase.position.y = 0.75;
+            couchGroup.add(couchBase);
+            
+            const couchBack = new THREE.Mesh(
+                new THREE.BoxGeometry(6, 2, 0.5),
+                new THREE.MeshStandardMaterial({ color: 0x4a2020 })
+            );
+            couchBack.position.set(0, 1.5, -1.25);
+            couchGroup.add(couchBack);
+            
+            couchGroup.position.set(objData.position.x, 0, objData.position.z);
+            mesh = couchGroup;
+            break;
+            
+        case 'painting':
+            const frameGeo = new THREE.BoxGeometry(4, 3, 0.2);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+            mesh = new THREE.Mesh(frameGeo, frameMat);
+            
+            const canvas = new THREE.Mesh(
+                new THREE.BoxGeometry(3.5, 2.5, 0.1),
+                new THREE.MeshStandardMaterial({ color: 0x2a4a2a })
+            );
+            canvas.position.z = 0.1;
+            mesh.add(canvas);
+            
+            mesh.position.set(objData.position.x, objData.position.y, objData.position.z);
+            break;
+            
+        case 'table':
+            const tableGeo = new THREE.BoxGeometry(10, 0.3, 4);
+            const tableMat = new THREE.MeshStandardMaterial({
+                color: 0x5c4033,
+                roughness: 0.5
+            });
+            mesh = new THREE.Mesh(tableGeo, tableMat);
+            mesh.position.set(objData.position.x, 2.5, objData.position.z);
+            
+            // Table legs
+            for (let x = -1; x <= 1; x += 2) {
+                for (let z = -1; z <= 1; z += 2) {
+                    const leg = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.3, 2.5, 0.3),
+                        tableMat
+                    );
+                    leg.position.set(x * 4.5, -1.25, z * 1.5);
+                    mesh.add(leg);
+                }
+            }
+            break;
+            
+        case 'safe':
+            const safeGeo = new THREE.BoxGeometry(2, 3, 2);
+            const safeMat = new THREE.MeshStandardMaterial({
+                color: 0x333333,
+                roughness: 0.4,
+                metalness: 0.6
+            });
+            mesh = new THREE.Mesh(safeGeo, safeMat);
+            mesh.position.set(objData.position.x, 1.5, objData.position.z);
+            break;
+            
+        case 'bed':
+            const bedGroup = new THREE.Group();
+            const bedFrame = new THREE.Mesh(
+                new THREE.BoxGeometry(6, 1, 8),
+                new THREE.MeshStandardMaterial({ color: 0x5c4033 })
+            );
+            bedFrame.position.y = 0.5;
+            bedGroup.add(bedFrame);
+            
+            const mattress = new THREE.Mesh(
+                new THREE.BoxGeometry(5.5, 0.5, 7.5),
+                new THREE.MeshStandardMaterial({ color: 0xeeeeee })
+            );
+            mattress.position.y = 1.25;
+            bedGroup.add(mattress);
+            
+            const pillow = new THREE.Mesh(
+                new THREE.BoxGeometry(4, 0.3, 1.5),
+                new THREE.MeshStandardMaterial({ color: 0xffffff })
+            );
+            pillow.position.set(0, 1.6, -2.5);
+            bedGroup.add(pillow);
+            
+            bedGroup.position.set(objData.position.x, 0, objData.position.z);
+            mesh = bedGroup;
+            break;
+            
+        case 'nightstand':
+            const nsGeo = new THREE.BoxGeometry(1.5, 2, 1.5);
+            const nsMat = new THREE.MeshStandardMaterial({ color: 0x5c4033 });
+            mesh = new THREE.Mesh(nsGeo, nsMat);
+            mesh.position.set(objData.position.x, 1, objData.position.z);
+            break;
+            
+        case 'wardrobe':
+            const wardrobeGeo = new THREE.BoxGeometry(4, 7, 2);
+            const wardrobeMat = new THREE.MeshStandardMaterial({ color: 0x4a3520 });
+            mesh = new THREE.Mesh(wardrobeGeo, wardrobeMat);
+            mesh.position.set(objData.position.x, 3.5, objData.position.z);
+            break;
+            
+        default:
+            return;
+    }
+    
+    if (mesh) {
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+    }
+}
+
+function createInteriorEvidence(group, evidence) {
+    const evidenceGroup = new THREE.Group();
+    evidenceGroup.position.set(evidence.position.x, evidence.position.y, evidence.position.z);
+    
+    const docGeometry = new THREE.BoxGeometry(1.5, 0.1, 2);
+    const docMaterial = new THREE.MeshStandardMaterial({
+        color: 0xf5f5dc,
+        roughness: 0.5,
+        emissive: 0xffff00,
+        emissiveIntensity: 0.4
+    });
+    const doc = new THREE.Mesh(docGeometry, docMaterial);
+    doc.castShadow = true;
+    evidenceGroup.add(doc);
+    
+    const glowGeometry = new THREE.SphereGeometry(1.5, 16, 12);
+    const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        transparent: true,
+        opacity: 0.2
+    });
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    evidenceGroup.add(glow);
+    
+    evidenceGroup.userData = {
+        type: 'evidence',
+        id: evidence.id,
+        name: evidence.name,
+        content: evidence.content,
+        found: false,
+    };
+    
+    interactables.push(evidenceGroup);
+    group.add(evidenceGroup);
+}
+
+function enterBuilding(buildingId) {
+    const interior = interiorScenes[buildingId];
+    if (!interior) {
+        showBuildingInfo({ 
+            name: 'Building', 
+            description: 'This building cannot be entered.' 
+        });
+        return;
+    }
+    
+    // Find the building's exterior position
+    const building = ISLAND_LAYOUT.buildings.find(b => b.id === buildingId);
+    if (!building) return;
+    
+    gameState.inInterior = buildingId;
+    
+    // Hide exterior objects (water, sky, vegetation would still be visible but we're inside)
+    // Position interior at origin for simplicity
+    interior.position.set(0, 0, 0);
+    interior.visible = true;
+    
+    // Move player to interior entrance
+    camera.position.set(0, playerHeight, INTERIOR_DATA[buildingId].size.d / 2 - 5);
+    camera.lookAt(0, playerHeight, 0);
+    
+    // Hide water and sky (we're inside)
+    if (water) water.visible = false;
+    
+    // Update location
+    gameState.currentLocation = INTERIOR_DATA[buildingId].name + ' - Interior';
+    document.getElementById('location').textContent = `Location: ${gameState.currentLocation}`;
+    
+    // Start phone ringing if in temple
+    if (buildingId === 'temple' && !gameState.phoneFound) {
+        setTimeout(() => {
+            if (gameState.inInterior === 'temple') {
+                phoneRinger.startRinging();
+                gameState.phoneRinging = true;
+            }
+        }, 3000);
+    }
+}
+
+function exitBuilding() {
+    if (!gameState.inInterior) return;
+    
+    const buildingId = gameState.inInterior;
+    const building = ISLAND_LAYOUT.buildings.find(b => b.id === buildingId);
+    
+    // Hide interior
+    if (interiorScenes[buildingId]) {
+        interiorScenes[buildingId].visible = false;
+    }
+    
+    // Show exterior
+    if (water) water.visible = true;
+    
+    // Stop phone if ringing
+    if (gameState.phoneRinging) {
+        phoneRinger.stopRinging();
+        gameState.phoneRinging = false;
+    }
+    
+    // Move player outside the building
+    if (building) {
+        camera.position.set(
+            building.position.x,
+            playerHeight,
+            building.position.z + (building.size?.d || 20) / 2 + 10
+        );
+    }
+    
+    gameState.inInterior = null;
+    updateLocation();
 }
 
 // ============================================
@@ -1240,21 +2077,62 @@ function setupMinimap() {
 function updateMinimap() {
     if (!minimapCtx) return;
     
-    minimapCtx.fillStyle = '#1a3d1a';
+    // Clear with ocean color
+    minimapCtx.fillStyle = '#1a3d5a';
     minimapCtx.fillRect(0, 0, 150, 150);
     
     const scale = 0.25;
     const offsetX = 75;
     const offsetZ = 75;
     
+    // Draw island shape (simplified)
+    minimapCtx.fillStyle = '#2d5a2d';
+    minimapCtx.beginPath();
+    minimapCtx.ellipse(offsetX - 20, offsetZ, 60, 45, 0.2, 0, Math.PI * 2);
+    minimapCtx.fill();
+    
+    // Draw paths
+    minimapCtx.strokeStyle = '#c2b280';
+    minimapCtx.lineWidth = 1;
+    ISLAND_LAYOUT.paths.forEach(path => {
+        minimapCtx.beginPath();
+        minimapCtx.moveTo(path.from.x * scale + offsetX, path.from.z * scale + offsetZ);
+        minimapCtx.lineTo(path.to.x * scale + offsetX, path.to.z * scale + offsetZ);
+        minimapCtx.stroke();
+    });
+    
     // Draw buildings
-    minimapCtx.fillStyle = '#888';
     ISLAND_LAYOUT.buildings.forEach(b => {
         const x = b.position.x * scale + offsetX;
         const z = b.position.z * scale + offsetZ;
         const w = (b.size.w || 10) * scale;
         const h = (b.size.d || 10) * scale;
+        
+        // Highlight enterable buildings
+        if (INTERIOR_DATA[b.id]) {
+            minimapCtx.fillStyle = '#aa8855';
+        } else {
+            minimapCtx.fillStyle = '#666';
+        }
+        
+        // Temple gets special color
+        if (b.id === 'temple') {
+            minimapCtx.fillStyle = '#4488ff';
+        }
+        
         minimapCtx.fillRect(x - w/2, z - h/2, w, h);
+    });
+    
+    // Draw evidence locations (not found)
+    minimapCtx.fillStyle = 'rgba(255, 255, 0, 0.6)';
+    EVIDENCE_DATA.forEach(e => {
+        if (!gameState.evidenceCollected.find(c => c.id === e.id)) {
+            const x = e.position.x * scale + offsetX;
+            const z = e.position.z * scale + offsetZ;
+            minimapCtx.beginPath();
+            minimapCtx.arc(x, z, 2, 0, Math.PI * 2);
+            minimapCtx.fill();
+        }
     });
     
     // Draw NPCs
@@ -1284,6 +2162,14 @@ function updateMinimap() {
     minimapCtx.moveTo(px, pz);
     minimapCtx.lineTo(px + dir.x * 10, pz + dir.z * 10);
     minimapCtx.stroke();
+    
+    // Show "INTERIOR" text if inside building
+    if (gameState.inInterior) {
+        minimapCtx.fillStyle = '#fff';
+        minimapCtx.font = '10px monospace';
+        minimapCtx.textAlign = 'center';
+        minimapCtx.fillText('INTERIOR', 75, 145);
+    }
 }
 
 // ============================================
@@ -1455,12 +2341,42 @@ function checkInteractions() {
     
     const meshes = [];
     interactables.forEach(obj => {
-        obj.traverse(child => {
-            if (child instanceof THREE.Mesh) {
-                child.userData.parentInteractable = obj;
-                meshes.push(child);
+        // Skip objects not relevant to current location (interior vs exterior)
+        if (gameState.inInterior) {
+            // In interior - only check interior objects
+            const parent = obj.parent;
+            if (parent && parent.userData && parent.userData.buildingId === gameState.inInterior) {
+                obj.traverse(child => {
+                    if (child instanceof THREE.Mesh) {
+                        child.userData.parentInteractable = obj;
+                        meshes.push(child);
+                    }
+                });
             }
-        });
+            // Also check the object itself
+            if (obj.userData && (obj.userData.type === 'exit' || obj.userData.type === 'phone' || obj.userData.type === 'evidence')) {
+                if (obj instanceof THREE.Mesh) {
+                    obj.userData.parentInteractable = obj;
+                    meshes.push(obj);
+                }
+                obj.traverse(child => {
+                    if (child instanceof THREE.Mesh) {
+                        child.userData.parentInteractable = obj;
+                        meshes.push(child);
+                    }
+                });
+            }
+        } else {
+            // Exterior - check all non-interior objects
+            if (obj.userData && obj.userData.type !== 'exit') {
+                obj.traverse(child => {
+                    if (child instanceof THREE.Mesh) {
+                        child.userData.parentInteractable = obj;
+                        meshes.push(child);
+                    }
+                });
+            }
+        }
     });
     
     const intersects = raycaster.intersectObjects(meshes);
@@ -1470,11 +2386,23 @@ function checkInteractions() {
     
     if (intersects.length > 0) {
         const hit = intersects[0];
-        const parent = hit.object.userData.parentInteractable;
+        const parent = hit.object.userData.parentInteractable || hit.object;
         
-        if (parent && hit.distance < CONFIG.interactionDistance) {
+        if (parent && parent.userData && hit.distance < CONFIG.interactionDistance) {
             gameState.canInteract = parent;
-            prompt.textContent = `Press E to interact with ${parent.userData.name}`;
+            
+            let promptText = 'Press E to interact';
+            if (parent.userData.type === 'door') {
+                promptText = `Press E to enter ${parent.userData.buildingName}`;
+            } else if (parent.userData.type === 'exit') {
+                promptText = 'Press E to exit building';
+            } else if (parent.userData.type === 'phone') {
+                promptText = 'Press E to answer phone';
+            } else if (parent.userData.name) {
+                promptText = `Press E to interact with ${parent.userData.name}`;
+            }
+            
+            prompt.textContent = promptText;
             prompt.classList.add('visible');
             crosshair.classList.add('interact');
             return;
@@ -1502,7 +2430,61 @@ function interact() {
         case 'building':
             showBuildingInfo(data);
             break;
+        case 'door':
+            enterBuilding(data.buildingId);
+            break;
+        case 'exit':
+            exitBuilding();
+            break;
+        case 'phone':
+            answerPhone();
+            break;
     }
+}
+
+function answerPhone() {
+    if (gameState.phoneFound) return;
+    
+    gameState.phoneFound = true;
+    phoneRinger.stopRinging();
+    gameState.phoneRinging = false;
+    
+    // Play creepy answer sound
+    phoneRinger.playAnswerSound();
+    
+    // Show evidence popup with the easter egg message
+    const popup = document.getElementById('evidence-popup');
+    const title = document.getElementById('evidence-title');
+    const content = document.getElementById('evidence-content');
+    
+    title.textContent = "📞 INCOMING CALL";
+    content.innerHTML = `<span style="color: #c41e3a; font-weight: bold;">JEFF'S CALLING...</span>
+
+*static*
+
+"Hello? Is anyone there?"
+
+*garbled voice*
+
+"...they can't keep hiding forever..."
+"...the list... they're all on the list..."
+
+*click*
+
+<span style="color: #666; font-style: italic;">The line goes dead.</span>
+
+<span style="color: #ffd700;">🏆 EASTER EGG FOUND: "Jeff's Calling"</span>`;
+    
+    popup.classList.add('visible');
+    controls.unlock();
+    
+    // Add to evidence
+    gameState.evidenceCollected.push({
+        id: 'jeffs_call',
+        name: '📞 Jeff\'s Call Recording',
+        content: 'A disturbing phone call... someone was trying to reach out.'
+    });
+    updateInventory();
 }
 
 function startDialogue(npcData) {
@@ -1698,20 +2680,43 @@ function animate() {
         
         camera.position.y += velocity.y * delta;
         
-        // Ground collision
-        if (camera.position.y < playerHeight) {
-            velocity.y = 0;
-            camera.position.y = playerHeight;
-            canJump = true;
-        }
-        
-        // Keep player on island (rough bounds)
-        const maxDist = 250;
-        const dist = Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2);
-        if (dist > maxDist) {
-            const angle = Math.atan2(camera.position.z, camera.position.x);
-            camera.position.x = Math.cos(angle) * maxDist;
-            camera.position.z = Math.sin(angle) * maxDist;
+        // Ground collision - different for interior vs exterior
+        if (gameState.inInterior) {
+            // Interior bounds
+            const interior = INTERIOR_DATA[gameState.inInterior];
+            if (interior) {
+                const halfW = interior.size.w / 2 - 2;
+                const halfD = interior.size.d / 2 - 2;
+                
+                camera.position.x = Math.max(-halfW, Math.min(halfW, camera.position.x));
+                camera.position.z = Math.max(-halfD, Math.min(halfD, camera.position.z));
+            }
+            
+            // Interior floor
+            if (camera.position.y < playerHeight) {
+                velocity.y = 0;
+                camera.position.y = playerHeight;
+                canJump = true;
+            }
+        } else {
+            // Exterior - terrain height based on position
+            const terrainHeight = getTerrainHeight(camera.position.x, camera.position.z);
+            const groundLevel = terrainHeight + playerHeight;
+            
+            if (camera.position.y < groundLevel) {
+                velocity.y = 0;
+                camera.position.y = groundLevel;
+                canJump = true;
+            }
+            
+            // Keep player on island (rough bounds)
+            const maxDist = 250;
+            const dist = Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2);
+            if (dist > maxDist) {
+                const angle = Math.atan2(camera.position.z, camera.position.x);
+                camera.position.x = Math.cos(angle) * maxDist;
+                camera.position.z = Math.sin(angle) * maxDist;
+            }
         }
         
         checkInteractions();

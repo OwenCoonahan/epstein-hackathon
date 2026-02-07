@@ -16,7 +16,9 @@ class TaskManager {
     
     openTask(task) {
         this.currentTask = task;
-        this.taskTitle.textContent = task.name;
+        // Use funny task name if available
+        const funnyName = FUNNY_TASK_NAMES && FUNNY_TASK_NAMES[task.name] ? FUNNY_TASK_NAMES[task.name] : task.name;
+        this.taskTitle.textContent = funnyName;
         this.taskContent.innerHTML = '';
         
         // Generate appropriate mini-game
