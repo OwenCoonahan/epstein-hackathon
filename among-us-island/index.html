@@ -35,17 +35,11 @@
                     <select id="impostor-count">
                         <option value="1">1 Impostor</option>
                         <option value="2" selected>2 Impostors</option>
-                        <option value="3">3 Impostors</option>
                     </select>
-                </label>
-                <label>
-                    🔊 Music:
-                    <input type="range" id="volume-slider" min="0" max="100" value="30" style="width: 120px;">
                 </label>
             </div>
             
             <button id="start-btn" class="btn-primary">START GAME</button>
-            <button id="demo-btn" class="btn-demo">🎬 DEMO MODE</button>
             <button id="how-to-play-btn" class="btn-secondary">HOW TO PLAY</button>
         </div>
     </div>
@@ -82,11 +76,6 @@
                 <p><strong>Kill:</strong> Q key / Kill button (Impostor only)</p>
                 <p><strong>Report:</strong> R key / Report button</p>
                 <p><strong>Vent:</strong> E key on vent (Impostor only)</p>
-            </div>
-            <div class="demo-info">
-                <h3>🎬 Demo Mode</h3>
-                <p>Watch the game play itself! AI controls all characters including yours.</p>
-                <p>Press ESC to take control at any time.</p>
             </div>
             <button id="close-how-to" class="btn-secondary">CLOSE</button>
         </div>
@@ -170,7 +159,6 @@
         </div>
     </div>
 
-    <script src="js/music.js"></script>
     <script src="js/characters.js"></script>
     <script src="js/map.js"></script>
     <script src="js/tasks.js"></script>

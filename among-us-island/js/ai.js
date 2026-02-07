@@ -1,14 +1,10 @@
-// Enhanced AI Bot System with Auto-Movement and Demo Mode
+// AI Bot System
 
 class AIController {
     constructor(game) {
         this.game = game;
         this.botStates = new Map();
         this.updateInterval = null;
-        this.demoMode = false;
-        this.demoMeetingTimer = 0;
-        this.demoKillTimer = 0;
-        this.lastDemoEvent = 0;
     }
     
     initialize(bots) {
@@ -16,44 +12,18 @@ class AIController {
             this.botStates.set(bot.id, {
                 state: 'idle',
                 target: null,
-                targetRoom: null,
                 path: [],
-                pathIndex: 0,
-                waypoint: null,
                 waitTime: 0,
                 taskIndex: 0,
                 suspicion: new Map(),
                 lastKillTime: 0,
-                ventCooldown: 0,
-                animationPhase: 0,
-                lastMoveDirection: { x: 0, y: 0 },
-                pauseAtTaskTime: 0,
-                walkSpeed: 2.5 + Math.random() * 1,
-                personality: this.generatePersonality()
+                ventCooldown: 0
             });
         });
     }
     
-    generatePersonality() {
-        return {
-            wanderProbability: 0.3 + Math.random() * 0.4,
-            taskFocus: 0.4 + Math.random() * 0.5,
-            suspicion: 0.2 + Math.random() * 0.6,
-            aggression: 0.3 + Math.random() * 0.5, // For impostors
-            ventUsage: 0.2 + Math.random() * 0.4    // For impostors
-        };
-    }
-    
-    setDemoMode(enabled) {
-        this.demoMode = enabled;
-        if (enabled) {
-            this.demoMeetingTimer = 30000 + Math.random() * 30000; // 30-60 seconds
-            this.demoKillTimer = 15000 + Math.random() * 20000;    // 15-35 seconds
-        }
-    }
-    
     start() {
-        this.updateInterval = setInterval(() => this.update(), 50); // 20 FPS for AI
+        this.updateInterval = setInterval(() => this.update(), 100);
     }
     
     stop() {
@@ -66,41 +36,11 @@ class AIController {
     update() {
         if (this.game.gameState !== 'playing') return;
         
-        // Update all bots (including player in demo mode)
         this.game.players.forEach(player => {
-            if (player.isDead) return;
-            
-            // In demo mode, control the player too
-            if (player.isPlayer && !this.demoMode) return;
+            if (player.isPlayer || player.isDead) return;
             
             const state = this.botStates.get(player.id);
-            if (!state) {
-                // Initialize state for player in demo mode
-                if (player.isPlayer && this.demoMode) {
-                    this.botStates.set(player.id, {
-                        state: 'idle',
-                        target: null,
-                        targetRoom: null,
-                        path: [],
-                        pathIndex: 0,
-                        waypoint: null,
-                        waitTime: 0,
-                        taskIndex: 0,
-                        suspicion: new Map(),
-                        lastKillTime: 0,
-                        ventCooldown: 0,
-                        animationPhase: 0,
-                        lastMoveDirection: { x: 0, y: 0 },
-                        pauseAtTaskTime: 0,
-                        walkSpeed: 2.5,
-                        personality: this.generatePersonality()
-                    });
-                }
-                return;
-            }
-            
-            // Update animation phase
-            state.animationPhase = (state.animationPhase + 0.1) % (Math.PI * 2);
+            if (!state) return;
             
             if (player.isImpostor) {
                 this.updateImpostorAI(player, state);
@@ -108,143 +48,26 @@ class AIController {
                 this.updateCrewmateAI(player, state);
             }
         });
-        
-        // Demo mode events
-        if (this.demoMode) {
-            this.updateDemoMode();
-        }
-        
-        // Update music suspense level
-        if (typeof musicManager !== 'undefined') {
-            const aliveImpostors = this.game.players.filter(p => p.isImpostor && !p.isDead).length;
-            const totalPlayers = this.game.players.filter(p => !p.isDead).length;
-            const killsHappened = this.game.deadBodies.length;
-            
-            const suspense = Math.min(1, (killsHappened * 0.2) + (1 - totalPlayers / this.game.playerCount) * 0.3);
-            musicManager.setSuspenseLevel(suspense);
-        }
-    }
-    
-    updateDemoMode() {
-        const now = Date.now();
-        
-        // Demo kill timer
-        this.demoKillTimer -= 50;
-        if (this.demoKillTimer <= 0) {
-            this.triggerDemoKill();
-            this.demoKillTimer = 20000 + Math.random() * 25000;
-        }
-        
-        // Demo meeting timer
-        this.demoMeetingTimer -= 50;
-        if (this.demoMeetingTimer <= 0 && this.game.deadBodies.length > 0) {
-            this.triggerDemoMeeting();
-            this.demoMeetingTimer = 40000 + Math.random() * 30000;
-        }
-    }
-    
-    triggerDemoKill() {
-        const impostors = this.game.players.filter(p => p.isImpostor && !p.isDead);
-        const crewmates = this.game.players.filter(p => !p.isImpostor && !p.isDead);
-        
-        if (impostors.length === 0 || crewmates.length === 0) return;
-        
-        // Pick random impostor and nearby crewmate
-        const impostor = impostors[Math.floor(Math.random() * impostors.length)];
-        
-        // Find isolated crewmate
-        let target = null;
-        let bestScore = -1;
-        
-        crewmates.forEach(c => {
-            const dist = this.getDistance(impostor, c);
-            const nearbyPlayers = this.game.players.filter(p => 
-                p.id !== impostor.id && p.id !== c.id && !p.isDead &&
-                this.getDistance(p, c) < 200
-            ).length;
-            
-            const score = (500 - dist) - (nearbyPlayers * 100);
-            
-            if (score > bestScore && dist < 400) {
-                bestScore = score;
-                target = c;
-            }
-        });
-        
-        if (target && bestScore > 0) {
-            // Move impostor close and kill
-            const state = this.botStates.get(impostor.id);
-            if (state) {
-                state.state = 'hunting';
-                state.target = target;
-            }
-        }
-    }
-    
-    triggerDemoMeeting() {
-        const body = this.game.deadBodies[0];
-        if (!body) return;
-        
-        // Find closest alive player to report
-        const alivePlayers = this.game.players.filter(p => !p.isDead);
-        let closest = null;
-        let closestDist = Infinity;
-        
-        alivePlayers.forEach(p => {
-            const dist = Math.sqrt(
-                Math.pow(p.x - body.x, 2) + Math.pow(p.y - body.y, 2)
-            );
-            if (dist < closestDist) {
-                closestDist = dist;
-                closest = p;
-            }
-        });
-        
-        if (closest) {
-            // Move them to body and report
-            const state = this.botStates.get(closest.id);
-            if (state) {
-                state.state = 'moving_to_body';
-                state.target = { x: body.x, y: body.y };
-                state.bodyToReport = body;
-            }
-        }
     }
     
     updateCrewmateAI(bot, state) {
         // Reduce wait time
         if (state.waitTime > 0) {
-            state.waitTime -= 50;
-            // Small idle animation
-            this.applyIdleAnimation(bot, state);
+            state.waitTime -= 100;
             return;
         }
         
         switch (state.state) {
             case 'idle':
-                // Decide what to do based on personality
-                if (Math.random() < state.personality.taskFocus && this.hasIncompleteTasks(bot)) {
-                    this.pickNextTask(bot, state);
-                } else {
-                    this.startWandering(bot, state);
-                }
-                break;
-                
-            case 'wandering':
-                this.updateWandering(bot, state);
+                this.pickNextTask(bot, state);
                 break;
                 
             case 'moving':
-            case 'moving_to_task':
-                this.updateMovement(bot, state);
+                this.moveToTarget(bot, state);
                 break;
                 
             case 'doing_task':
                 this.doTask(bot, state);
-                break;
-                
-            case 'moving_to_body':
-                this.moveToBody(bot, state);
                 break;
                 
             case 'reporting':
@@ -253,7 +76,7 @@ class AIController {
         }
         
         // Check for bodies
-        if (state.state !== 'reporting' && state.state !== 'moving_to_body') {
+        if (state.state !== 'reporting') {
             const nearbyBody = this.findNearbyBody(bot);
             if (nearbyBody) {
                 state.state = 'reporting';
@@ -265,17 +88,17 @@ class AIController {
     updateImpostorAI(bot, state) {
         // Reduce cooldowns
         if (state.waitTime > 0) {
-            state.waitTime -= 50;
-            this.applyIdleAnimation(bot, state);
+            state.waitTime -= 100;
         }
-        state.ventCooldown = Math.max(0, state.ventCooldown - 50);
+        state.ventCooldown = Math.max(0, state.ventCooldown - 100);
         
         const killOnCooldown = Date.now() - state.lastKillTime < this.game.killCooldown * 1000;
         
         switch (state.state) {
             case 'idle':
                 // Decide what to do
-                if (!killOnCooldown && Math.random() < state.personality.aggression * 0.5) {
+                if (!killOnCooldown && Math.random() < 0.3) {
+                    // Look for kill target
                     const target = this.findKillTarget(bot);
                     if (target) {
                         state.state = 'hunting';
@@ -285,10 +108,10 @@ class AIController {
                 }
                 
                 // Fake tasks or wander
-                if (Math.random() < 0.5) {
+                if (Math.random() < 0.6) {
                     this.pickFakeTask(bot, state);
                 } else {
-                    this.startWandering(bot, state);
+                    this.wander(bot, state);
                 }
                 break;
                 
@@ -296,23 +119,8 @@ class AIController {
                 this.huntTarget(bot, state);
                 break;
                 
-            case 'wandering':
-                this.updateWandering(bot, state);
-                
-                // Opportunistic kill check
-                if (!killOnCooldown) {
-                    const target = this.findKillTarget(bot);
-                    if (target && this.getDistance(bot, target) < this.game.killRange) {
-                        if (!this.areOtherPlayersNearby(bot, target)) {
-                            this.performKill(bot, target, state);
-                        }
-                    }
-                }
-                break;
-                
             case 'moving':
-            case 'moving_to_task':
-                this.updateMovement(bot, state);
+                this.moveToTarget(bot, state);
                 break;
                 
             case 'faking_task':
@@ -325,9 +133,8 @@ class AIController {
                 break;
         }
         
-        // Random vent usage
-        if (state.state === 'idle' && state.ventCooldown <= 0 && 
-            Math.random() < state.personality.ventUsage * 0.01) {
+        // Random chance to use vent
+        if (state.state === 'idle' && state.ventCooldown <= 0 && Math.random() < 0.02) {
             const nearbyVent = this.findNearbyVent(bot);
             if (nearbyVent && !this.areOtherPlayersNearby(bot)) {
                 state.state = 'venting';
@@ -336,211 +143,21 @@ class AIController {
         }
     }
     
-    // Enhanced wandering with pathfinding
-    startWandering(bot, state) {
-        // Pick a random room to wander to
-        const [targetRoomId, targetRoom] = getRandomRoom(true);
-        
-        // Get current room
-        const currentRoom = getRoomAtPosition(bot.x, bot.y);
-        const currentRoomId = currentRoom ? currentRoom.id : null;
-        
-        if (currentRoomId && currentRoomId !== targetRoomId) {
-            // Use pathfinding
-            const path = findPath(currentRoomId, targetRoomId);
-            
-            if (path && path.length > 1) {
-                state.path = path;
-                state.pathIndex = 1;
-                state.state = 'wandering';
-                state.targetRoom = targetRoomId;
-                this.setWaypointFromPath(bot, state);
-            } else {
-                // Direct wander
-                state.waypoint = {
-                    x: targetRoom.x + Math.random() * targetRoom.width,
-                    y: targetRoom.y + Math.random() * targetRoom.height
-                };
-                state.state = 'wandering';
-            }
-        } else {
-            // Wander within current room
-            if (currentRoom) {
-                state.waypoint = {
-                    x: currentRoom.x + 20 + Math.random() * (currentRoom.width - 40),
-                    y: currentRoom.y + 20 + Math.random() * (currentRoom.height - 40)
-                };
-            } else {
-                // Fallback to random position
-                state.waypoint = {
-                    x: bot.x + (Math.random() - 0.5) * 200,
-                    y: bot.y + (Math.random() - 0.5) * 200
-                };
-            }
-            state.state = 'wandering';
-        }
-    }
-    
-    setWaypointFromPath(bot, state) {
-        if (state.pathIndex < state.path.length) {
-            const roomId = state.path[state.pathIndex];
-            const node = PATHFINDING_NODES[roomId];
-            
-            if (node) {
-                // Add some randomness to waypoint within room
-                const room = node.room;
-                state.waypoint = {
-                    x: room.x + 20 + Math.random() * (room.width - 40),
-                    y: room.y + 20 + Math.random() * (room.height - 40)
-                };
-            }
-        }
-    }
-    
-    updateWandering(bot, state) {
-        if (!state.waypoint) {
-            state.state = 'idle';
-            state.waitTime = 500 + Math.random() * 1000;
-            return;
-        }
-        
-        const dx = state.waypoint.x - bot.x;
-        const dy = state.waypoint.y - bot.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist < 20) {
-            // Reached waypoint
-            if (state.path && state.pathIndex < state.path.length - 1) {
-                // Continue to next waypoint
-                state.pathIndex++;
-                this.setWaypointFromPath(bot, state);
-                
-                // Small pause at room transitions
-                if (Math.random() < 0.3) {
-                    state.waitTime = 300 + Math.random() * 500;
-                }
-            } else {
-                // Reached destination
-                state.state = 'idle';
-                state.waitTime = 1000 + Math.random() * 2000;
-                state.path = null;
-            }
-            return;
-        }
-        
-        // Move towards waypoint with smooth movement
-        const speed = state.walkSpeed;
-        const vx = (dx / dist) * speed;
-        const vy = (dy / dist) * speed;
-        
-        this.game.moveBot(bot, vx, vy);
-        state.lastMoveDirection = { x: vx, y: vy };
-    }
-    
-    updateMovement(bot, state) {
-        if (!state.waypoint && !state.target) {
-            state.state = 'idle';
-            return;
-        }
-        
-        const target = state.waypoint || state.target;
-        const dx = target.x - bot.x;
-        const dy = target.y - bot.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist < 30) {
-            // Reached target
-            if (state.path && state.pathIndex < state.path.length - 1) {
-                state.pathIndex++;
-                this.setWaypointFromPath(bot, state);
-            } else if (state.state === 'moving_to_task') {
-                state.state = 'doing_task';
-            } else {
-                state.state = 'idle';
-                state.waitTime = 500;
-            }
-            return;
-        }
-        
-        const speed = state.walkSpeed;
-        const vx = (dx / dist) * speed;
-        const vy = (dy / dist) * speed;
-        
-        this.game.moveBot(bot, vx, vy);
-        state.lastMoveDirection = { x: vx, y: vy };
-    }
-    
-    moveToBody(bot, state) {
-        if (!state.target) {
-            state.state = 'idle';
-            return;
-        }
-        
-        const dx = state.target.x - bot.x;
-        const dy = state.target.y - bot.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        if (dist < 80) {
-            // Close enough to report
-            if (state.bodyToReport) {
-                this.game.reportBody(bot, state.bodyToReport);
-            }
-            state.state = 'idle';
-            return;
-        }
-        
-        const speed = state.walkSpeed * 1.2; // Walk faster to body
-        const vx = (dx / dist) * speed;
-        const vy = (dy / dist) * speed;
-        
-        this.game.moveBot(bot, vx, vy);
-    }
-    
-    hasIncompleteTasks(bot) {
-        return bot.tasks.some(t => !t.completed && !t.fake);
-    }
-    
     pickNextTask(bot, state) {
-        const tasks = bot.tasks.filter(t => !t.completed && !t.fake);
+        const tasks = bot.tasks.filter(t => !t.completed);
         if (tasks.length === 0) {
-            this.startWandering(bot, state);
+            this.wander(bot, state);
             return;
         }
         
-        // Pick closest incomplete task
-        let closestTask = null;
-        let closestDist = Infinity;
+        const task = tasks[state.taskIndex % tasks.length];
+        state.taskIndex++;
         
-        tasks.forEach(task => {
-            const taskLocation = TASK_LOCATIONS.find(t => t.id === task.id);
-            if (taskLocation) {
-                const dist = this.getDistance(bot, taskLocation);
-                if (dist < closestDist) {
-                    closestDist = dist;
-                    closestTask = { ...task, ...taskLocation };
-                }
-            }
-        });
-        
-        if (closestTask) {
-            // Find path to task room
-            const currentRoom = getRoomAtPosition(bot.x, bot.y);
-            const taskRoom = getRoomAtPosition(closestTask.x, closestTask.y);
-            
-            if (currentRoom && taskRoom && currentRoom.id !== taskRoom.id) {
-                const path = findPath(currentRoom.id, taskRoom.id);
-                if (path) {
-                    state.path = path;
-                    state.pathIndex = 1;
-                    this.setWaypointFromPath(bot, state);
-                }
-            }
-            
-            state.target = { x: closestTask.x, y: closestTask.y };
-            state.currentTask = closestTask;
-            state.state = 'moving_to_task';
-        } else {
-            this.startWandering(bot, state);
+        const taskLocation = TASK_LOCATIONS.find(t => t.id === task.id);
+        if (taskLocation) {
+            state.target = { x: taskLocation.x, y: taskLocation.y };
+            state.currentTask = task;
+            state.state = 'moving';
         }
     }
     
@@ -551,19 +168,59 @@ class AIController {
         state.afterMove = 'faking_task';
     }
     
+    wander(bot, state) {
+        // Pick a random room to walk to
+        const rooms = Object.values(ROOMS);
+        const room = rooms[Math.floor(Math.random() * rooms.length)];
+        
+        state.target = {
+            x: room.x + Math.random() * room.width,
+            y: room.y + Math.random() * room.height
+        };
+        state.state = 'moving';
+        state.afterMove = 'idle';
+    }
+    
+    moveToTarget(bot, state) {
+        if (!state.target) {
+            state.state = 'idle';
+            return;
+        }
+        
+        const dx = state.target.x - bot.x;
+        const dy = state.target.y - bot.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist < 20) {
+            // Reached target
+            if (state.afterMove) {
+                state.state = state.afterMove;
+                state.afterMove = null;
+            } else if (state.currentTask) {
+                state.state = 'doing_task';
+            } else {
+                state.state = 'idle';
+                state.waitTime = 500;
+            }
+            return;
+        }
+        
+        // Move towards target
+        const speed = bot.isImpostor && state.state === 'hunting' ? 3.5 : 3;
+        const vx = (dx / dist) * speed;
+        const vy = (dy / dist) * speed;
+        
+        this.game.moveBot(bot, vx, vy);
+    }
+    
     doTask(bot, state) {
         // Simulate doing task
-        state.waitTime = 2500 + Math.random() * 2500;
+        state.waitTime = 3000 + Math.random() * 2000;
         
-        if (state.currentTask && !state.currentTask.fake) {
+        if (state.currentTask) {
             state.currentTask.completed = true;
             this.game.onBotTaskComplete(bot, state.currentTask);
             state.currentTask = null;
-            
-            // Play sound
-            if (typeof musicManager !== 'undefined') {
-                musicManager.playTaskCompleteSound();
-            }
         }
         
         state.state = 'idle';
@@ -584,51 +241,34 @@ class AIController {
             const killOnCooldown = Date.now() - state.lastKillTime < this.game.killCooldown * 1000;
             
             if (!killOnCooldown && !this.areOtherPlayersNearby(bot, state.target)) {
-                this.performKill(bot, state.target, state);
+                this.game.killPlayer(bot, state.target);
+                state.lastKillTime = Date.now();
+                state.state = 'idle';
+                state.waitTime = 1000;
+                
+                // Maybe vent away
+                if (Math.random() < 0.5) {
+                    const nearbyVent = this.findNearbyVent(bot);
+                    if (nearbyVent) {
+                        state.state = 'venting';
+                        state.target = nearbyVent;
+                    }
+                }
                 return;
             }
         }
         
         // Move towards target
-        const speed = state.walkSpeed + 0.5;
+        const speed = 3.5;
         const vx = (dx / dist) * speed;
         const vy = (dy / dist) * speed;
         
         this.game.moveBot(bot, vx, vy);
-        state.lastMoveDirection = { x: vx, y: vy };
         
         // Give up if chase is too long or others nearby
         if (this.areOtherPlayersNearby(bot, state.target)) {
             state.state = 'idle';
-            state.waitTime = 1000;
         }
-    }
-    
-    performKill(bot, target, state) {
-        this.game.killPlayer(bot, target);
-        state.lastKillTime = Date.now();
-        state.state = 'idle';
-        state.waitTime = 1000;
-        
-        // Play kill sound
-        if (typeof musicManager !== 'undefined') {
-            musicManager.playKillSound();
-        }
-        
-        // Maybe vent away
-        if (Math.random() < state.personality.ventUsage) {
-            const nearbyVent = this.findNearbyVent(bot);
-            if (nearbyVent) {
-                state.state = 'venting';
-                state.target = nearbyVent;
-            }
-        }
-    }
-    
-    applyIdleAnimation(bot, state) {
-        // Small breathing/idle animation
-        const breathOffset = Math.sin(state.animationPhase) * 0.3;
-        // This could affect sprite scale or position slightly
     }
     
     findKillTarget(bot) {
@@ -649,9 +289,11 @@ class AIController {
         let closestDist = Infinity;
         
         pool.forEach(c => {
-            const dist = this.getDistance(bot, c);
+            const dx = c.x - bot.x;
+            const dy = c.y - bot.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
             
-            if (dist < closestDist && dist < 500) {
+            if (dist < closestDist && dist < 400) {
                 closest = c;
                 closestDist = dist;
             }
@@ -665,23 +307,23 @@ class AIController {
             if (p.id === bot.id || p.isDead) return false;
             if (exclude && p.id === exclude.id) return false;
             
-            const dist = this.getDistance(bot, p);
-            return dist < 250;
+            const dx = p.x - bot.x;
+            const dy = p.y - bot.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            return dist < 200;
         });
-    }
-    
-    getDistance(a, b) {
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        return Math.sqrt(dx * dx + dy * dy);
     }
     
     findNearbyBody(bot) {
         const bodies = this.game.deadBodies || [];
         
         for (const body of bodies) {
-            const dist = this.getDistance(bot, body);
-            if (dist < 200) {
+            const dx = body.x - bot.x;
+            const dy = body.y - bot.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            if (dist < 150) {
                 return body;
             }
         }
@@ -692,11 +334,6 @@ class AIController {
     reportBody(bot, state) {
         if (state.target) {
             this.game.reportBody(bot, state.target);
-            
-            // Play report sound
-            if (typeof musicManager !== 'undefined') {
-                musicManager.playReportSound();
-            }
         }
         state.state = 'idle';
         state.target = null;
@@ -708,7 +345,7 @@ class AIController {
             const dy = vent.y - bot.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
-            if (dist < 100) {
+            if (dist < 80) {
                 return vent;
             }
         }
@@ -721,11 +358,6 @@ class AIController {
             return;
         }
         
-        // Play vent sound
-        if (typeof musicManager !== 'undefined') {
-            musicManager.playVentSound();
-        }
-        
         // Pick random connected vent
         const targetVentId = state.target.connections[
             Math.floor(Math.random() * state.target.connections.length)
@@ -733,6 +365,7 @@ class AIController {
         const targetVent = VENTS.find(v => v.id === targetVentId);
         
         if (targetVent) {
+            // Teleport to vent
             this.game.ventPlayer(bot, targetVent);
             state.ventCooldown = 15000;
         }
@@ -750,7 +383,7 @@ class AIController {
             // Impostors vote randomly for non-impostors or skip
             const nonImpostors = alivePlayers.filter(p => !p.isImpostor);
             
-            if (Math.random() < 0.25) {
+            if (Math.random() < 0.3) {
                 return 'skip';
             }
             
@@ -761,18 +394,19 @@ class AIController {
         }
         
         // Crewmates vote based on suspicion
+        // If a body was reported, vote for players who were nearby
+        // Otherwise vote somewhat randomly with slight bias against impostors
+        
         const candidates = alivePlayers.filter(p => p.id !== bot.id);
         
-        if (Math.random() < 0.15) {
+        if (Math.random() < 0.2) {
             return 'skip';
         }
         
-        // Bias towards actual impostors (simulates good detective work sometimes)
-        const personality = state ? state.personality : { suspicion: 0.4 };
-        
+        // Slight bias towards actual impostors (simulates good detective work sometimes)
         const weights = candidates.map(c => {
             let weight = 1;
-            if (c.isImpostor && Math.random() < personality.suspicion) weight = 3;
+            if (c.isImpostor && Math.random() < 0.4) weight = 3;
             return { player: c, weight };
         });
         
