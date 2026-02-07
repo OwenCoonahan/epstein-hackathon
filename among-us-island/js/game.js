@@ -1029,7 +1029,14 @@ class AmongUsGame {
     
     startGame() {
         this.gameState = 'playing';
-        this.aiController.start();
+        // Delay AI start to prevent initial freeze
+        setTimeout(() => {
+            try {
+                this.aiController.start();
+            } catch (e) {
+                console.error('AI start error:', e);
+            }
+        }, 500);
     }
     
     update() {
