@@ -8,7 +8,8 @@ import { Sky } from 'three/addons/objects/Sky.js';
 // ============================================
 
 const CONFIG = {
-    moveSpeed: 800, // VERY fast movement for easy exploration
+    moveSpeed: 2000, // EXTREMELY fast movement
+    flySpeed: 3000,  // Even faster when flying
     lookSpeed: 0.002,
     interactionDistance: 15,
     gravity: -30,
@@ -48,6 +49,8 @@ let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
 let playerHeight = 8;
 let canJump = true;
+let isFlying = false;  // Flying mode toggle
+let lastSpaceTime = 0; // For double-tap detection
 let clock = new THREE.Clock();
 let raycaster = new THREE.Raycaster();
 let interactables = [];
@@ -904,89 +907,38 @@ function createWater() {
 // ============================================
 
 function createIsland() {
-    // Create the main island shape - crescent/boomerang
-    const islandShape = new THREE.Shape();
+    // SIMPLE FLAT ISLAND - just a disc, no complex shapes
     
-    // Outer perimeter
-    islandShape.moveTo(-200, -120);
-    islandShape.bezierCurveTo(-250, -50, -220, 50, -150, 100);
-    islandShape.bezierCurveTo(-50, 130, 100, 120, 180, 80);
-    islandShape.bezierCurveTo(250, 40, 260, -20, 230, -60);
-    islandShape.bezierCurveTo(200, -100, 100, -110, 0, -100);
-    islandShape.bezierCurveTo(-100, -90, -150, -110, -200, -120);
-    
-    // Create beach ring (flat, no bevel)
-    const beachGeometry = new THREE.ExtrudeGeometry(islandShape, {
-        depth: 1,
-        bevelEnabled: false  // No bevel = flat beach
-    });
-    
+    // Beach ring - flat circle
+    const beachGeometry = new THREE.CircleGeometry(250, 64);
     const beachMaterial = new THREE.MeshStandardMaterial({
         color: 0xf4e4c1,
         roughness: 0.9,
         metalness: 0
     });
-    
     const beach = new THREE.Mesh(beachGeometry, beachMaterial);
     beach.rotation.x = -Math.PI / 2;
-    beach.position.y = -1;
+    beach.position.y = 1;
     beach.receiveShadow = true;
     scene.add(beach);
     exteriorObjects.push(beach);
     
-    // Create SOLID FLAT WALKABLE GROUND for the entire island
-    const groundGeometry = new THREE.PlaneGeometry(500, 400, 50, 50);
-    const groundMaterial = new THREE.MeshStandardMaterial({
+    // Main grass area - flat circle on top
+    const grassGeometry = new THREE.CircleGeometry(220, 64);
+    const grassMaterial = new THREE.MeshStandardMaterial({
         color: 0x3d5c3d,
         roughness: 0.85,
         metalness: 0
     });
+    const grass = new THREE.Mesh(grassGeometry, grassMaterial);
+    grass.rotation.x = -Math.PI / 2;
+    grass.position.y = 2;  // Slightly above beach
+    grass.receiveShadow = true;
+    scene.add(grass);
+    exteriorObjects.push(grass);
+    terrainMesh = grass;
     
-    // Keep ground FLAT - no vertex displacement
-    const positions = groundGeometry.attributes.position;
-    for (let i = 0; i < positions.count; i++) {
-        const x = positions.getX(i);
-        const z = positions.getY(i); // Y in 2D becomes Z in 3D
-        
-        // Check if inside island bounds (rough)
-        const distFromCenter = Math.sqrt(x * x + z * z);
-        if (distFromCenter < 220) {
-            positions.setZ(i, 3);  // FLAT constant height
-        } else {
-            positions.setZ(i, -5); // Below water
-        }
-    }
-    groundGeometry.computeVertexNormals();
-    
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
-    ground.receiveShadow = true;
-    scene.add(ground);
-    exteriorObjects.push(ground);
-    terrainMesh = ground;
-    
-    // Create main terrain as a FLAT elevated surface (no dome!)
-    const terrainGeometry = new THREE.ExtrudeGeometry(islandShape, {
-        depth: 1,  // Very thin - just a flat surface
-        bevelEnabled: false  // No bevel = no bulge
-    });
-    
-    const terrainMat = new THREE.MeshStandardMaterial({
-        color: 0x3d5c3d,
-        roughness: 0.85,
-        metalness: 0
-    });
-    
-    const terrain = new THREE.Mesh(terrainGeometry, terrainMat);
-    terrain.rotation.x = -Math.PI / 2;
-    terrain.position.y = 2;  // Flat at ground level
-    terrain.receiveShadow = true;
-    terrain.castShadow = true;
-    scene.add(terrain);
-    exteriorObjects.push(terrain);
-    
-    // NO hills - keep terrain completely flat and walkable
+    // That's it - completely flat, no extrusions, no hills, no domes
 }
 
 // ============================================
@@ -2161,10 +2113,22 @@ function onKeyDown(event) {
             moveRight = true;
             break;
         case 'Space':
-            if (canJump) {
+            const now = Date.now();
+            if (now - lastSpaceTime < 300) {
+                // Double-tap space = toggle flying
+                isFlying = !isFlying;
+                if (isFlying) {
+                    velocity.y = 0;
+                    showMessage('🦅 FLYING MODE ON - Double-tap space to land');
+                } else {
+                    showMessage('🚶 WALKING MODE');
+                }
+            } else if (!isFlying && canJump) {
+                // Single tap = jump (only if not flying)
                 velocity.y = CONFIG.jumpHeight;
                 canJump = false;
             }
+            lastSpaceTime = now;
             break;
         case 'KeyE':
             interact();
@@ -2579,24 +2543,73 @@ function animate() {
     
     // Player movement
     if (controls.isLocked) {
-        velocity.x -= velocity.x * 10.0 * delta;
-        velocity.z -= velocity.z * 10.0 * delta;
-        velocity.y += CONFIG.gravity * delta;
+        const speed = isFlying ? CONFIG.flySpeed : CONFIG.moveSpeed;
         
-        direction.z = Number(moveForward) - Number(moveBackward);
-        direction.x = Number(moveRight) - Number(moveLeft);
-        direction.normalize();
+        if (isFlying) {
+            // FLYING MODE - move in camera look direction
+            velocity.x -= velocity.x * 5.0 * delta;
+            velocity.z -= velocity.z * 5.0 * delta;
+            velocity.y -= velocity.y * 5.0 * delta;
+            
+            // Get camera forward direction (including pitch)
+            const forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+            
+            // Get camera right direction
+            const right = new THREE.Vector3();
+            right.crossVectors(forward, camera.up).normalize();
+            
+            // Apply movement in 3D
+            if (moveForward) {
+                velocity.x += forward.x * speed * delta;
+                velocity.y += forward.y * speed * delta;
+                velocity.z += forward.z * speed * delta;
+            }
+            if (moveBackward) {
+                velocity.x -= forward.x * speed * delta;
+                velocity.y -= forward.y * speed * delta;
+                velocity.z -= forward.z * speed * delta;
+            }
+            if (moveLeft) {
+                velocity.x -= right.x * speed * delta;
+                velocity.z -= right.z * speed * delta;
+            }
+            if (moveRight) {
+                velocity.x += right.x * speed * delta;
+                velocity.z += right.z * speed * delta;
+            }
+            
+            camera.position.x += velocity.x * delta;
+            camera.position.y += velocity.y * delta;
+            camera.position.z += velocity.z * delta;
+            
+            // Minimum height when flying
+            if (camera.position.y < 5) camera.position.y = 5;
+        } else {
+            // WALKING MODE - original ground-based movement
+            velocity.x -= velocity.x * 10.0 * delta;
+            velocity.z -= velocity.z * 10.0 * delta;
+            velocity.y += CONFIG.gravity * delta;
+            
+            direction.z = Number(moveForward) - Number(moveBackward);
+            direction.x = Number(moveRight) - Number(moveLeft);
+            direction.normalize();
+            
+            if (moveForward || moveBackward) velocity.z -= direction.z * speed * delta;
+            if (moveLeft || moveRight) velocity.x -= direction.x * speed * delta;
+            
+            controls.moveRight(-velocity.x * delta);
+            controls.moveForward(-velocity.z * delta);
+            
+            camera.position.y += velocity.y * delta;
+        }
         
-        if (moveForward || moveBackward) velocity.z -= direction.z * CONFIG.moveSpeed * delta;
-        if (moveLeft || moveRight) velocity.x -= direction.x * CONFIG.moveSpeed * delta;
-        
-        controls.moveRight(-velocity.x * delta);
-        controls.moveForward(-velocity.z * delta);
-        
-        camera.position.y += velocity.y * delta;
-        
-        // Ground collision - different for interior vs exterior
-        if (gameState.inInterior) {
+        // Ground collision - skip if flying
+        if (isFlying) {
+            // No ground collision when flying - just update interactions
+            checkInteractions();
+            updateLocation();
+        } else if (gameState.inInterior) {
             // Interior bounds
             const interior = INTERIOR_DATA[gameState.inInterior];
             if (interior) {
