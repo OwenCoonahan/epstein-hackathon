@@ -8,7 +8,7 @@ import { Sky } from 'three/addons/objects/Sky.js';
 // ============================================
 
 const CONFIG = {
-    moveSpeed: 250, // Increased 5x for snappy movement
+    moveSpeed: 800, // VERY fast movement for easy exploration
     lookSpeed: 0.002,
     interactionDistance: 15,
     gravity: -30,
@@ -915,13 +915,10 @@ function createIsland() {
     islandShape.bezierCurveTo(200, -100, 100, -110, 0, -100);
     islandShape.bezierCurveTo(-100, -90, -150, -110, -200, -120);
     
-    // Create beach ring (slightly larger, flat)
+    // Create beach ring (flat, no bevel)
     const beachGeometry = new THREE.ExtrudeGeometry(islandShape, {
         depth: 1,
-        bevelEnabled: true,
-        bevelThickness: 30,
-        bevelSize: 20,
-        bevelSegments: 3
+        bevelEnabled: false  // No bevel = flat beach
     });
     
     const beachMaterial = new THREE.MeshStandardMaterial({
@@ -945,7 +942,7 @@ function createIsland() {
         metalness: 0
     });
     
-    // Displace vertices based on terrain height for visual effect
+    // Keep ground FLAT - no vertex displacement
     const positions = groundGeometry.attributes.position;
     for (let i = 0; i < positions.count; i++) {
         const x = positions.getX(i);
@@ -954,8 +951,7 @@ function createIsland() {
         // Check if inside island bounds (rough)
         const distFromCenter = Math.sqrt(x * x + z * z);
         if (distFromCenter < 220) {
-            const height = getTerrainHeight(x, z);
-            positions.setZ(i, height);
+            positions.setZ(i, 3);  // FLAT constant height
         } else {
             positions.setZ(i, -5); // Below water
         }
@@ -970,13 +966,10 @@ function createIsland() {
     exteriorObjects.push(ground);
     terrainMesh = ground;
     
-    // Create main terrain (elevated center) - for visual depth
+    // Create main terrain as a FLAT elevated surface (no dome!)
     const terrainGeometry = new THREE.ExtrudeGeometry(islandShape, {
-        depth: 8,
-        bevelEnabled: true,
-        bevelThickness: 3,
-        bevelSize: -10,
-        bevelSegments: 2
+        depth: 1,  // Very thin - just a flat surface
+        bevelEnabled: false  // No bevel = no bulge
     });
     
     const terrainMat = new THREE.MeshStandardMaterial({
@@ -987,30 +980,13 @@ function createIsland() {
     
     const terrain = new THREE.Mesh(terrainGeometry, terrainMat);
     terrain.rotation.x = -Math.PI / 2;
-    terrain.position.y = -5;
+    terrain.position.y = 2;  // Flat at ground level
     terrain.receiveShadow = true;
     terrain.castShadow = true;
     scene.add(terrain);
     exteriorObjects.push(terrain);
     
-    // Add visible hills as very smooth mounds - matching getTerrainHeight values
-    const hillPositions = [
-        { x: -180, z: -80, height: 20, radius: 50 },  // Temple hill
-        { x: -80, z: 40, height: 8, radius: 45 },     // Secondary area
-    ];
-    
-    hillPositions.forEach(hill => {
-        // Use sphere geometry cut in half for ultra-smooth hills
-        const hillGeometry = new THREE.SphereGeometry(hill.radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-        const hillMesh = new THREE.Mesh(hillGeometry, terrainMat.clone());
-        hillMesh.material.color.setHex(0x2d4c2d);
-        hillMesh.scale.y = hill.height / hill.radius;
-        hillMesh.position.set(hill.x, 0, hill.z);
-        hillMesh.receiveShadow = true;
-        hillMesh.castShadow = true;
-        scene.add(hillMesh);
-        exteriorObjects.push(hillMesh);
-    });
+    // NO hills - keep terrain completely flat and walkable
 }
 
 // ============================================
@@ -1018,75 +994,14 @@ function createIsland() {
 // ============================================
 
 function getTerrainHeight(x, z) {
-    // Base terrain - gentle rolling hills that are easy to walk on
-    // Main interior is relatively flat with some elevation changes
+    // FLAT terrain - completely walkable everywhere
+    // Just a constant ground level for easy exploration
     
-    let height = 2; // Base ground level above sea
+    let height = 3; // Flat ground level above sea
     
-    // Only the temple is on a significant hill
-    // Other areas are gently elevated for variety
-    const hillPositions = [
-        { x: -180, z: -80, height: 20, radius: 50 },   // Temple hill - main elevation
-        { x: 50, z: 0, height: 5, radius: 80 },        // Main mansion - very gentle
-        { x: -80, z: 40, height: 8, radius: 45 },      // Secondary area
-        { x: 150, z: 30, height: 4, radius: 40 },      // East area - gentle
-        { x: 0, z: 20, height: 3, radius: 100 },       // Central flat area
-    ];
+    // No hills, no complex terrain - everything is flat and walkable
     
-    hillPositions.forEach(hill => {
-        const dx = x - hill.x;
-        const dz = z - hill.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        
-        if (dist < hill.radius) {
-            // Very smooth cosine-based hill profile for gentle slopes
-            const t = dist / hill.radius;
-            const hillHeight = hill.height * 0.5 * (1 + Math.cos(Math.PI * t));
-            height = Math.max(height, hillHeight);
-        }
-    });
-    
-    // Flatten areas around buildings so they're easy to approach
-    ISLAND_LAYOUT.buildings.forEach(b => {
-        const dx = x - b.position.x;
-        const dz = z - b.position.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        
-        // Within 30 units of any building, flatten significantly
-        if (dist < 30) {
-            const buildingBaseHeight = b.id === 'temple' ? 20 : 3;
-            const t = dist / 30;
-            height = buildingBaseHeight * (1 - t) + height * t;
-        }
-    });
-    
-    // Ensure paths are very flat and walkable
-    ISLAND_LAYOUT.paths.forEach(path => {
-        // Check distance from path line, not just center
-        const ax = path.from.x, az = path.from.z;
-        const bx = path.to.x, bz = path.to.z;
-        const px = x, pz = z;
-        
-        // Project point onto line segment
-        const abx = bx - ax, abz = bz - az;
-        const apx = px - ax, apz = pz - az;
-        const t = Math.max(0, Math.min(1, (apx * abx + apz * abz) / (abx * abx + abz * abz)));
-        const nearestX = ax + t * abx;
-        const nearestZ = az + t * abz;
-        
-        const dx = px - nearestX;
-        const dz = pz - nearestZ;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        
-        // Near paths, clamp height to walkable level
-        if (dist < 15) {
-            const pathBaseHeight = 3; // Paths at gentle elevation
-            const blend = dist / 15;
-            height = pathBaseHeight * (1 - blend) + height * blend;
-        }
-    });
-    
-    return Math.max(0, height);
+    return height;  // Always return flat constant
 }
 
 // ============================================

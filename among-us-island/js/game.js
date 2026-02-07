@@ -106,78 +106,145 @@ class AmongUsGame {
     createMap() {
         const graphics = this.scene.add.graphics();
         
-        // Draw ocean background
-        graphics.fillStyle(0x1a5276, 1);
+        // Draw deep ocean background
+        graphics.fillStyle(0x0d3b66, 1);
         graphics.fillRect(-500, -500, MAP_CONFIG.width + 1000, MAP_CONFIG.height + 1000);
         
-        // Draw island shape (rough ellipse)
+        // Draw ocean waves/lighter areas
+        graphics.fillStyle(0x1a5276, 0.6);
+        for (let i = 0; i < 20; i++) {
+            const x = Math.random() * MAP_CONFIG.width;
+            const y = Math.random() * MAP_CONFIG.height;
+            graphics.fillEllipse(x, y, 100 + Math.random() * 150, 40 + Math.random() * 60);
+        }
+        
+        // Draw island shape (rough ellipse) - darker green base
+        graphics.fillStyle(0x1e4620, 1);
+        graphics.fillEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.92, MAP_CONFIG.height * 0.92);
+        
+        // Draw island - main green
         graphics.fillStyle(0x2d5a27, 1);
-        graphics.fillEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.9, MAP_CONFIG.height * 0.9);
+        graphics.fillEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.88, MAP_CONFIG.height * 0.88);
         
         // Draw beach
-        graphics.lineStyle(30, 0xf4d03f, 0.6);
-        graphics.strokeEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.88, MAP_CONFIG.height * 0.88);
+        graphics.lineStyle(35, 0xf4d03f, 0.7);
+        graphics.strokeEllipse(MAP_CONFIG.width / 2, MAP_CONFIG.height / 2, MAP_CONFIG.width * 0.86, MAP_CONFIG.height * 0.86);
+        
+        // Draw some palm trees scattered around
+        const palmPositions = [
+            {x: 150, y: 600}, {x: 200, y: 1200}, {x: 450, y: 400},
+            {x: 2100, y: 500}, {x: 2200, y: 1200}, {x: 1800, y: 1400},
+            {x: 600, y: 1500}, {x: 350, y: 1000}, {x: 2050, y: 900}
+        ];
+        palmPositions.forEach(pos => {
+            this.drawPalmTree(graphics, pos.x, pos.y);
+        });
         
         // Draw rooms
         Object.values(ROOMS).forEach(room => {
-            // Room floor
+            // Room shadow
+            graphics.fillStyle(0x000000, 0.2);
+            graphics.fillRoundedRect(room.x + 5, room.y + 5, room.width, room.height, 12);
+            
+            // Room floor - base color
             graphics.fillStyle(room.color, 1);
-            graphics.fillRoundedRect(room.x, room.y, room.width, room.height, 10);
+            graphics.fillRoundedRect(room.x, room.y, room.width, room.height, 12);
+            
+            // Room floor - gradient effect (lighter top)
+            graphics.fillStyle(0xffffff, 0.1);
+            graphics.fillRoundedRect(room.x, room.y, room.width, room.height / 3, {tl: 12, tr: 12, bl: 0, br: 0});
             
             // Room border
-            graphics.lineStyle(3, 0x333333, 1);
-            graphics.strokeRoundedRect(room.x, room.y, room.width, room.height, 10);
+            graphics.lineStyle(4, 0x222222, 1);
+            graphics.strokeRoundedRect(room.x, room.y, room.width, room.height, 12);
             
             // Special patterns
             if (room.pattern === 'stripes') {
-                // Temple gold stripes
+                // Temple gold stripes - the infamous blue & gold temple
                 graphics.fillStyle(0xffd700, 1);
-                for (let i = 0; i < room.height; i += 20) {
-                    if ((i / 20) % 2 === 0) {
-                        graphics.fillRect(room.x + 5, room.y + i, room.width - 10, 10);
+                for (let i = 0; i < room.height; i += 25) {
+                    if ((i / 25) % 2 === 0) {
+                        graphics.fillRect(room.x + 8, room.y + i, room.width - 16, 12);
                     }
                 }
+                // Temple door
+                graphics.fillStyle(0x8b4513, 1);
+                graphics.fillRoundedRect(room.x + room.width/2 - 25, room.y + room.height - 60, 50, 60, {tl: 25, tr: 25, bl: 0, br: 0});
             }
             
-            // Room label
+            // Add room-specific decorations
+            this.addRoomDecorations(room);
+            
+            // Room label with better styling
             const text = this.scene.add.text(
                 room.x + room.width / 2,
-                room.y + 15,
+                room.y + 18,
                 room.name,
-                { fontSize: '12px', color: '#ffffff', fontStyle: 'bold' }
+                { 
+                    fontSize: '13px', 
+                    color: '#ffffff', 
+                    fontFamily: 'Arial Black, sans-serif',
+                    fontStyle: 'bold',
+                    stroke: '#000000',
+                    strokeThickness: 2
+                }
             );
             text.setOrigin(0.5, 0);
-            text.setAlpha(0.7);
+            text.setDepth(3);
         });
         
-        // Draw task locations
+        // Draw task locations with better styling
         TASK_LOCATIONS.forEach(task => {
-            graphics.fillStyle(0xffff00, 0.8);
-            graphics.fillCircle(task.x, task.y, 15);
-            graphics.lineStyle(2, 0x000000, 1);
-            graphics.strokeCircle(task.x, task.y, 15);
+            // Outer glow
+            graphics.fillStyle(0xffff00, 0.3);
+            graphics.fillCircle(task.x, task.y, 22);
+            
+            // Main circle
+            graphics.fillStyle(0xffff00, 0.9);
+            graphics.fillCircle(task.x, task.y, 16);
+            
+            // Inner highlight
+            graphics.fillStyle(0xffffaa, 0.8);
+            graphics.fillCircle(task.x - 3, task.y - 3, 8);
+            
+            // Border
+            graphics.lineStyle(3, 0xcc9900, 1);
+            graphics.strokeCircle(task.x, task.y, 16);
             
             // Task icon
             const icon = this.scene.add.text(task.x, task.y, '!', {
-                fontSize: '16px',
+                fontSize: '18px',
                 color: '#000000',
-                fontStyle: 'bold'
+                fontStyle: 'bold',
+                fontFamily: 'Arial Black'
             });
             icon.setOrigin(0.5);
+            icon.setDepth(2);
         });
         
-        // Draw vents
+        // Draw vents with better styling
         VENTS.forEach(vent => {
-            graphics.fillStyle(0x333333, 1);
-            graphics.fillRect(vent.x - 25, vent.y - 15, 50, 30);
-            graphics.lineStyle(2, 0x666666, 1);
-            graphics.strokeRect(vent.x - 25, vent.y - 15, 50, 30);
+            // Vent shadow
+            graphics.fillStyle(0x000000, 0.4);
+            graphics.fillRoundedRect(vent.x - 27, vent.y - 13, 54, 34, 5);
+            
+            // Vent body
+            graphics.fillStyle(0x2a2a2a, 1);
+            graphics.fillRoundedRect(vent.x - 28, vent.y - 16, 56, 32, 6);
+            
+            // Vent inner
+            graphics.fillStyle(0x111111, 1);
+            graphics.fillRoundedRect(vent.x - 24, vent.y - 12, 48, 24, 4);
             
             // Vent grate pattern
-            for (let i = -20; i <= 20; i += 10) {
-                graphics.lineStyle(2, 0x555555, 1);
-                graphics.lineBetween(vent.x + i, vent.y - 12, vent.x + i, vent.y + 12);
+            graphics.lineStyle(3, 0x444444, 1);
+            for (let i = -18; i <= 18; i += 9) {
+                graphics.lineBetween(vent.x + i, vent.y - 10, vent.x + i, vent.y + 10);
             }
+            
+            // Vent border
+            graphics.lineStyle(2, 0x555555, 1);
+            graphics.strokeRoundedRect(vent.x - 28, vent.y - 16, 56, 32, 6);
         });
         
         // Draw emergency button
@@ -196,6 +263,61 @@ class AmongUsGame {
             graphics.fillStyle(0xff4757, 0.5);
             graphics.fillCircle(loc.x, loc.y, 20);
         });
+    }
+    
+    drawPalmTree(graphics, x, y) {
+        // Tree trunk
+        graphics.fillStyle(0x8b4513, 1);
+        graphics.fillRect(x - 5, y - 40, 10, 50);
+        
+        // Palm fronds
+        graphics.fillStyle(0x228b22, 1);
+        // Left fronds
+        graphics.fillEllipse(x - 25, y - 50, 30, 12);
+        graphics.fillEllipse(x - 20, y - 60, 25, 10);
+        // Right fronds
+        graphics.fillEllipse(x + 25, y - 50, 30, 12);
+        graphics.fillEllipse(x + 20, y - 60, 25, 10);
+        // Top fronds
+        graphics.fillEllipse(x, y - 70, 20, 15);
+        graphics.fillEllipse(x - 10, y - 55, 22, 10);
+        graphics.fillEllipse(x + 10, y - 55, 22, 10);
+        
+        // Coconuts
+        graphics.fillStyle(0x8b4513, 1);
+        graphics.fillCircle(x - 5, y - 42, 5);
+        graphics.fillCircle(x + 5, y - 45, 5);
+    }
+    
+    addRoomDecorations(room) {
+        // Add emojis/decorations based on room type
+        const decorations = {
+            'mainHall': '🏛️',
+            'masterSuite': '🛏️',
+            'guestWing': '🚪',
+            'kitchen': '🍳',
+            'diningRoom': '🍽️',
+            'temple': '⛩️',
+            'poolArea': '🏊',
+            'tennisCourt': '🎾',
+            'helipad': '🚁',
+            'dock': '⚓',
+            'basement': '🔒',
+            'serverRoom': '💻',
+            'securityOffice': '📹'
+        };
+        
+        const emoji = decorations[room.id];
+        if (emoji && room.id !== 'junglePath1' && room.id !== 'junglePath2') {
+            const deco = this.scene.add.text(
+                room.x + room.width - 30,
+                room.y + room.height - 30,
+                emoji,
+                { fontSize: '24px' }
+            );
+            deco.setAlpha(0.6);
+            deco.setDepth(2);
+        }
     }
     
     createPlayers() {
@@ -223,6 +345,7 @@ class AmongUsGame {
                 name: char.name,
                 color: char.color,
                 bio: char.bio,
+                features: char.features || {}, // Include character features for sprite drawing
                 isPlayer: char.isPlayer || false,
                 isImpostor: char.isImpostor || false,
                 isDead: false,
