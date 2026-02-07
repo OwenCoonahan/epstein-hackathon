@@ -577,7 +577,7 @@ class NPCController {
         this.data = npcData;
         this.mesh = null;
         this.targetPosition = new THREE.Vector3();
-        this.currentPosition = new THREE.Vector3(position.x, 0, position.z);
+        this.currentPosition = new THREE.Vector3(position.x, 3, position.z); // Start on terrain
         this.state = 'idle'; // idle, walking, talking
         this.stateTimer = 0;
         this.walkSpeed = 8 + Math.random() * 5;
@@ -728,6 +728,8 @@ class NPCController {
         
         switch (this.state) {
             case 'idle':
+                // Keep on terrain while idle
+                this.mesh.position.y = 3;
                 if (this.stateTimer <= 0) {
                     this.state = 'walking';
                     this.pickNewTarget();
@@ -753,8 +755,8 @@ class NPCController {
                     const angle = Math.atan2(toTarget.x, toTarget.z);
                     this.mesh.rotation.y = angle;
                     
-                    // Bobbing animation while walking
-                    this.mesh.position.y = Math.sin(Date.now() * 0.01) * 0.3;
+                    // Bobbing animation while walking - ON TOP OF TERRAIN
+                    this.mesh.position.y = 3 + Math.sin(Date.now() * 0.01) * 0.3;
                 }
                 break;
         }
@@ -3729,6 +3731,152 @@ function animate() {
     updateMinimap();
     renderer.render(scene, camera);
 }
+
+// ============================================
+// EPSTEIN JUMPSCARE
+// ============================================
+
+let jumpscareTimeout = null;
+
+function scheduleJumpscare() {
+    // Random interval between 0-5 minutes (0-300000ms)
+    const delay = Math.random() * 300000;
+    jumpscareTimeout = setTimeout(() => {
+        triggerJumpscare();
+        scheduleJumpscare(); // Schedule next one
+    }, delay);
+}
+
+function triggerJumpscare() {
+    if (!gameState.isPlaying) return;
+    
+    // Create jumpscare overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'jumpscare';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    `;
+    
+    // Epstein's face - creepy ASCII/text version
+    const face = document.createElement('div');
+    face.style.cssText = `
+        font-size: 40vw;
+        color: rgba(255, 0, 0, 0.8);
+        text-shadow: 0 0 50px red, 0 0 100px darkred;
+        animation: jumpscareShake 0.1s infinite;
+    `;
+    face.textContent = '👁️';  // Creepy eye
+    overlay.appendChild(face);
+    
+    // Add scary text below
+    const text = document.createElement('div');
+    text.style.cssText = `
+        position: absolute;
+        bottom: 20%;
+        font-size: 5vw;
+        color: red;
+        font-family: monospace;
+        font-weight: bold;
+        text-shadow: 0 0 20px red;
+    `;
+    text.textContent = 'EPSTEIN DIDNT KILL HIMSELF';
+    overlay.appendChild(text);
+    
+    document.body.appendChild(overlay);
+    
+    // Add animation keyframes if not exists
+    if (!document.getElementById('jumpscareStyles')) {
+        const style = document.createElement('style');
+        style.id = 'jumpscareStyles';
+        style.textContent = `
+            @keyframes jumpscareShake {
+                0%, 100% { transform: translate(0, 0) rotate(0deg); }
+                25% { transform: translate(-5px, 5px) rotate(-2deg); }
+                50% { transform: translate(5px, -5px) rotate(2deg); }
+                75% { transform: translate(-5px, -5px) rotate(-1deg); }
+            }
+            @keyframes jumpscareSlide {
+                0% { left: -100%; }
+                20% { left: 0%; }
+                80% { left: 0%; }
+                100% { left: 100%; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Play scary sound
+    playJumpscareSound();
+    
+    // Animate across screen
+    overlay.style.animation = 'jumpscareSlide 2s ease-in-out forwards';
+    
+    // Remove after animation
+    setTimeout(() => {
+        overlay.remove();
+    }, 2000);
+}
+
+function playJumpscareSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // Distorted scream-like sound
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const distortion = ctx.createWaveShaper();
+        
+        // Create distortion curve
+        const curve = new Float32Array(256);
+        for (let i = 0; i < 256; i++) {
+            const x = (i - 128) / 128;
+            curve[i] = Math.tanh(x * 5);
+        }
+        distortion.curve = curve;
+        
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(200, ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.1);
+        osc1.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.5);
+        
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(150, ctx.currentTime);
+        osc2.frequency.exponentialRampToValueAtTime(600, ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.5, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1);
+        
+        osc1.connect(distortion);
+        osc2.connect(distortion);
+        distortion.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc1.start();
+        osc2.start();
+        osc1.stop(ctx.currentTime + 1);
+        osc2.stop(ctx.currentTime + 1);
+    } catch (e) {
+        console.log('Jumpscare audio failed:', e);
+    }
+}
+
+// Start scheduling jumpscares after game starts
+document.addEventListener('click', () => {
+    if (gameState.isPlaying && !jumpscareTimeout) {
+        // First jumpscare in 15-60 seconds
+        setTimeout(() => scheduleJumpscare(), 15000 + Math.random() * 45000);
+    }
+}, { once: true });
 
 // ============================================
 // START
