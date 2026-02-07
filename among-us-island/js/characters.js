@@ -306,7 +306,7 @@ function drawCharacterSprite(graphics, player, scale = 1) {
     graphics.strokeEllipse(ox, oy + 5 * s, 32 * s, 44 * s);
 }
 
-function drawCharacterFeatures(graphics, player, s) {
+function drawCharacterFeatures(graphics, player, s, ox, oy) {
     const features = player.features || {};
     
     // Hair styles
@@ -315,106 +315,98 @@ function drawCharacterFeatures(graphics, player, s) {
         graphics.fillStyle(hairColor, 1);
         
         switch (features.hair) {
-            case 'swoop': // Trump style
-                // Big swooping hair
+            case 'swoop': // Trump style - big yellow swooping hair
                 graphics.fillStyle(0xffcc00, 1);
-                graphics.beginPath();
-                graphics.moveTo(-15 * s, -25 * s);
-                graphics.bezierCurveTo(-5 * s, -40 * s, 20 * s, -35 * s, 25 * s, -20 * s);
-                graphics.bezierCurveTo(20 * s, -25 * s, 0 * s, -30 * s, -15 * s, -25 * s);
-                graphics.closePath();
-                graphics.fillPath();
-                // Hair flip
-                graphics.fillEllipse(20 * s, -22 * s, 12 * s, 8 * s);
+                // Main hair swoop
+                graphics.fillEllipse(ox + 5 * s, oy - 25 * s, 22 * s, 12 * s);
+                // Hair flip on top
+                graphics.fillEllipse(ox + 18 * s, oy - 22 * s, 10 * s, 8 * s);
+                graphics.fillEllipse(ox - 5 * s, oy - 28 * s, 12 * s, 8 * s);
                 break;
                 
             case 'wavy': // Clinton style - gray wavy
                 graphics.fillStyle(0xcccccc, 1);
-                graphics.fillEllipse(0 * s, -24 * s, 20 * s, 10 * s);
-                graphics.fillEllipse(-8 * s, -22 * s, 8 * s, 8 * s);
-                graphics.fillEllipse(8 * s, -22 * s, 8 * s, 8 * s);
+                graphics.fillEllipse(ox, oy - 24 * s, 22 * s, 10 * s);
+                graphics.fillEllipse(ox - 10 * s, oy - 22 * s, 8 * s, 8 * s);
+                graphics.fillEllipse(ox + 10 * s, oy - 22 * s, 8 * s, 8 * s);
                 break;
                 
             case 'bun': // Maxwell style
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillCircle(-5 * s, -28 * s, 10 * s);
-                graphics.fillEllipse(0 * s, -22 * s, 18 * s, 8 * s);
+                graphics.fillCircle(ox - 2 * s, oy - 30 * s, 10 * s);
+                graphics.fillEllipse(ox, oy - 22 * s, 20 * s, 10 * s);
                 break;
                 
             case 'balding': // Dershowitz
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(-10 * s, -18 * s, 8 * s, 10 * s);
-                graphics.fillEllipse(10 * s, -18 * s, 8 * s, 10 * s);
+                graphics.fillEllipse(ox - 12 * s, oy - 18 * s, 8 * s, 10 * s);
+                graphics.fillEllipse(ox + 12 * s, oy - 18 * s, 8 * s, 10 * s);
                 break;
                 
             case 'parted': // Gates style
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(0 * s, -24 * s, 18 * s, 8 * s);
+                graphics.fillEllipse(ox, oy - 24 * s, 20 * s, 10 * s);
                 // Part line
-                graphics.lineStyle(1 * s, 0x000000, 0.5);
-                graphics.lineBetween(0 * s, -30 * s, 0 * s, -20 * s);
+                graphics.lineStyle(2 * s, 0x000000, 0.5);
+                graphics.lineBetween(ox, oy - 30 * s, ox, oy - 18 * s);
                 break;
                 
             case 'receding': // Spacey
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(-8 * s, -20 * s, 10 * s, 8 * s);
-                graphics.fillEllipse(8 * s, -20 * s, 10 * s, 8 * s);
+                graphics.fillEllipse(ox - 10 * s, oy - 20 * s, 10 * s, 8 * s);
+                graphics.fillEllipse(ox + 10 * s, oy - 20 * s, 10 * s, 8 * s);
                 break;
                 
             case 'long': // Naomi
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(0 * s, -20 * s, 22 * s, 12 * s);
-                graphics.fillEllipse(-14 * s, 0 * s, 6 * s, 25 * s);
-                graphics.fillEllipse(14 * s, 0 * s, 6 * s, 25 * s);
+                graphics.fillEllipse(ox, oy - 22 * s, 24 * s, 12 * s);
+                graphics.fillEllipse(ox - 16 * s, oy, 6 * s, 28 * s);
+                graphics.fillEllipse(ox + 16 * s, oy, 6 * s, 28 * s);
                 break;
                 
             case 'bald':
                 // Just the shiny head
                 graphics.fillStyle(0xffeedd, 0.3);
-                graphics.fillEllipse(0 * s, -22 * s, 12 * s, 8 * s);
+                graphics.fillEllipse(ox, oy - 22 * s, 14 * s, 8 * s);
                 break;
                 
             case 'slicked': // Brunel
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(0 * s, -24 * s, 20 * s, 8 * s);
-                graphics.lineStyle(1 * s, 0x000000, 0.3);
-                for (let i = -8; i <= 8; i += 4) {
-                    graphics.lineBetween(i * s, -30 * s, (i + 5) * s, -18 * s);
-                }
+                graphics.fillEllipse(ox, oy - 24 * s, 22 * s, 10 * s);
                 break;
                 
             case 'egghead': // Epstein
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(-10 * s, -18 * s, 6 * s, 8 * s);
-                graphics.fillEllipse(10 * s, -18 * s, 6 * s, 8 * s);
+                graphics.fillEllipse(ox - 12 * s, oy - 18 * s, 6 * s, 10 * s);
+                graphics.fillEllipse(ox + 12 * s, oy - 18 * s, 6 * s, 10 * s);
                 break;
                 
             case 'ponytail':
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(0 * s, -24 * s, 18 * s, 8 * s);
-                graphics.fillEllipse(-18 * s, -15 * s, 6 * s, 15 * s);
+                graphics.fillEllipse(ox, oy - 24 * s, 20 * s, 10 * s);
+                graphics.fillEllipse(ox - 20 * s, oy - 12 * s, 6 * s, 16 * s);
                 break;
                 
             case 'short':
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(0 * s, -24 * s, 18 * s, 6 * s);
+                graphics.fillEllipse(ox, oy - 26 * s, 20 * s, 8 * s);
                 break;
                 
             case 'neat':
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(0 * s, -24 * s, 18 * s, 8 * s);
+                graphics.fillEllipse(ox, oy - 24 * s, 20 * s, 10 * s);
                 break;
                 
             case 'curly':
                 graphics.fillStyle(hairColor, 1);
-                for (let i = -10; i <= 10; i += 5) {
-                    graphics.fillCircle(i * s, -24 * s, 5 * s);
+                for (let i = -10; i <= 10; i += 6) {
+                    graphics.fillCircle(ox + i * s, oy - 26 * s, 6 * s);
                 }
                 break;
                 
             default:
                 graphics.fillStyle(hairColor, 1);
-                graphics.fillEllipse(0 * s, -24 * s, 16 * s, 8 * s);
+                graphics.fillEllipse(ox, oy - 24 * s, 18 * s, 10 * s);
         }
     }
     
@@ -425,24 +417,24 @@ function drawCharacterFeatures(graphics, player, s) {
         switch (features.hat) {
             case 'crown':
                 graphics.fillStyle(hatColor, 1);
-                graphics.fillRect(-12 * s, -35 * s, 24 * s, 12 * s);
+                graphics.fillRect(ox - 14 * s, oy - 38 * s, 28 * s, 14 * s);
                 // Crown points
-                graphics.fillTriangle(-12 * s, -35 * s, -8 * s, -35 * s, -10 * s, -42 * s);
-                graphics.fillTriangle(-4 * s, -35 * s, 4 * s, -35 * s, 0 * s, -45 * s);
-                graphics.fillTriangle(8 * s, -35 * s, 12 * s, -35 * s, 10 * s, -42 * s);
+                graphics.fillTriangle(ox - 14 * s, oy - 38 * s, ox - 6 * s, oy - 38 * s, ox - 10 * s, oy - 48 * s);
+                graphics.fillTriangle(ox - 4 * s, oy - 38 * s, ox + 4 * s, oy - 38 * s, ox, oy - 50 * s);
+                graphics.fillTriangle(ox + 6 * s, oy - 38 * s, ox + 14 * s, oy - 38 * s, ox + 10 * s, oy - 48 * s);
                 // Jewels
                 graphics.fillStyle(0xff0000, 1);
-                graphics.fillCircle(0 * s, -32 * s, 3 * s);
+                graphics.fillCircle(ox, oy - 32 * s, 4 * s);
                 graphics.fillStyle(0x0000ff, 1);
-                graphics.fillCircle(-8 * s, -32 * s, 2 * s);
-                graphics.fillCircle(8 * s, -32 * s, 2 * s);
+                graphics.fillCircle(ox - 8 * s, oy - 32 * s, 3 * s);
+                graphics.fillCircle(ox + 8 * s, oy - 32 * s, 3 * s);
                 break;
                 
             case 'pilot':
                 graphics.fillStyle(hatColor, 1);
-                graphics.fillRoundedRect(-14 * s, -34 * s, 28 * s, 10 * s, 3 * s);
+                graphics.fillRoundedRect(ox - 15 * s, oy - 36 * s, 30 * s, 12 * s, 4 * s);
                 graphics.fillStyle(0xffd700, 1);
-                graphics.fillRect(-4 * s, -36 * s, 8 * s, 4 * s);
+                graphics.fillRect(ox - 5 * s, oy - 40 * s, 10 * s, 6 * s);
                 break;
         }
     }
@@ -451,36 +443,33 @@ function drawCharacterFeatures(graphics, player, s) {
     if (features.glasses) {
         const glassesColor = features.glassesColor ? parseInt(features.glassesColor.replace('#', ''), 16) : 0x333333;
         graphics.lineStyle(2 * s, glassesColor, 1);
-        graphics.strokeCircle(4 * s, -8 * s, 8 * s);
-        graphics.strokeCircle(18 * s, -8 * s, 8 * s);
-        graphics.lineBetween(12 * s, -8 * s, 10 * s, -8 * s);
+        graphics.strokeCircle(ox + 4 * s, oy - 5 * s, 8 * s);
+        graphics.strokeCircle(ox + 18 * s, oy - 5 * s, 8 * s);
+        graphics.lineBetween(ox + 12 * s, oy - 5 * s, ox + 10 * s, oy - 5 * s);
         // Arms
-        graphics.lineBetween(-4 * s, -8 * s, -10 * s, -6 * s);
+        graphics.lineBetween(ox - 4 * s, oy - 5 * s, ox - 12 * s, oy - 3 * s);
     }
     
     // Lips
     if (features.lips) {
         const lipColor = features.lipColor ? parseInt(features.lipColor.replace('#', ''), 16) : 0xcc0000;
         graphics.fillStyle(lipColor, 1);
-        graphics.fillEllipse(8 * s, 5 * s, 8 * s, 3 * s);
+        graphics.fillEllipse(ox + 10 * s, oy + 8 * s, 8 * s, 4 * s);
     }
     
     // Smile types
     if (features.smile === 'big') {
-        // Clinton big smile
+        // Clinton big smile - white teeth
         graphics.fillStyle(0xffffff, 1);
-        graphics.fillEllipse(8 * s, 5 * s, 10 * s, 6 * s);
+        graphics.fillEllipse(ox + 10 * s, oy + 8 * s, 12 * s, 7 * s);
         graphics.fillStyle(0xff6666, 1);
-        graphics.fillEllipse(8 * s, 8 * s, 6 * s, 3 * s);
+        graphics.fillEllipse(ox + 10 * s, oy + 12 * s, 8 * s, 4 * s);
     } else if (features.smile === 'creepy') {
         graphics.lineStyle(2 * s, 0x333333, 1);
-        graphics.beginPath();
-        graphics.moveTo(2 * s, 5 * s);
-        graphics.bezierCurveTo(6 * s, 10 * s, 14 * s, 10 * s, 18 * s, 5 * s);
-        graphics.strokePath();
+        graphics.lineBetween(ox + 4 * s, oy + 8 * s, ox + 18 * s, oy + 6 * s);
     } else if (features.smirk) {
         graphics.lineStyle(2 * s, 0x333333, 1);
-        graphics.lineBetween(4 * s, 5 * s, 14 * s, 3 * s);
+        graphics.lineBetween(ox + 4 * s, oy + 8 * s, ox + 16 * s, oy + 5 * s);
     }
     
     // Accessories
@@ -488,36 +477,36 @@ function drawCharacterFeatures(graphics, player, s) {
         switch (features.accessory) {
             case 'pearls':
                 graphics.fillStyle(0xffffff, 1);
-                for (let i = -8; i <= 8; i += 4) {
-                    graphics.fillCircle(i * s, 18 * s, 3 * s);
+                for (let i = -10; i <= 10; i += 5) {
+                    graphics.fillCircle(ox + i * s, oy + 20 * s, 3 * s);
                 }
                 break;
                 
             case 'redtie':
                 graphics.fillStyle(0xff0000, 1);
-                graphics.fillTriangle(-4 * s, 15 * s, 4 * s, 15 * s, 0 * s, 35 * s);
-                graphics.fillRect(-3 * s, 12 * s, 6 * s, 6 * s);
+                graphics.fillTriangle(ox - 4 * s, oy + 18 * s, ox + 4 * s, oy + 18 * s, ox, oy + 38 * s);
+                graphics.fillRect(ox - 4 * s, oy + 14 * s, 8 * s, 6 * s);
                 break;
                 
             case 'sax':
                 // Small saxophone icon
                 graphics.fillStyle(0xffd700, 1);
-                graphics.fillEllipse(22 * s, 15 * s, 6 * s, 10 * s);
-                graphics.fillRect(20 * s, 5 * s, 4 * s, 12 * s);
+                graphics.fillEllipse(ox + 24 * s, oy + 18 * s, 6 * s, 12 * s);
+                graphics.fillRect(ox + 22 * s, oy + 6 * s, 4 * s, 14 * s);
                 break;
                 
             case 'briefcase':
                 graphics.fillStyle(0x4a3728, 1);
-                graphics.fillRoundedRect(18 * s, 20 * s, 14 * s, 10 * s, 2 * s);
+                graphics.fillRoundedRect(ox + 20 * s, oy + 22 * s, 14 * s, 12 * s, 3 * s);
                 graphics.fillStyle(0xffd700, 1);
-                graphics.fillRect(22 * s, 19 * s, 6 * s, 2 * s);
+                graphics.fillRect(ox + 24 * s, oy + 20 * s, 6 * s, 3 * s);
                 break;
                 
             case 'stethoscope':
-                graphics.lineStyle(2 * s, 0x333333, 1);
-                graphics.strokeCircle(0 * s, 25 * s, 5 * s);
-                graphics.lineBetween(-5 * s, 22 * s, -8 * s, 10 * s);
-                graphics.lineBetween(5 * s, 22 * s, 8 * s, 10 * s);
+                graphics.lineStyle(3 * s, 0x333333, 1);
+                graphics.strokeCircle(ox, oy + 28 * s, 6 * s);
+                graphics.lineBetween(ox - 6 * s, oy + 24 * s, ox - 10 * s, oy + 12 * s);
+                graphics.lineBetween(ox + 6 * s, oy + 24 * s, ox + 10 * s, oy + 12 * s);
                 break;
         }
     }
@@ -525,8 +514,8 @@ function drawCharacterFeatures(graphics, player, s) {
     // Scarf
     if (features.scarf) {
         graphics.fillStyle(0xff4444, 1);
-        graphics.fillRect(-12 * s, 12 * s, 24 * s, 8 * s);
-        graphics.fillRect(8 * s, 18 * s, 8 * s, 15 * s);
+        graphics.fillRect(ox - 14 * s, oy + 14 * s, 28 * s, 10 * s);
+        graphics.fillRect(ox + 10 * s, oy + 22 * s, 10 * s, 18 * s);
     }
 }
 
@@ -542,20 +531,26 @@ function darkenColor(color, amount) {
 function drawDeadBody(graphics, player, scale = 1) {
     const s = scale;
     const color = player.color;
+    const ox = 30;
+    const oy = 20;
+    
+    // Blood pool (draw first, behind body)
+    graphics.fillStyle(0x8b0000, 0.7);
+    graphics.fillEllipse(ox + 8 * s, oy + 8 * s, 25 * s, 12 * s);
     
     // Half body (cut in half Among Us style)
     graphics.fillStyle(color, 1);
-    graphics.fillEllipse(0 * s, 0 * s, 25 * s, 18 * s);
+    graphics.fillEllipse(ox, oy, 28 * s, 20 * s);
+    
+    // Darker shade for 3D
+    graphics.fillStyle(darkenColor(color, 0.2), 1);
+    graphics.fillEllipse(ox - 8 * s, oy, 8 * s, 16 * s);
     
     // Bone sticking out
     graphics.fillStyle(0xffffff, 1);
-    graphics.fillEllipse(12 * s, -5 * s, 8 * s, 4 * s);
-    graphics.fillEllipse(18 * s, -8 * s, 5 * s, 3 * s);
-    graphics.fillEllipse(18 * s, -2 * s, 5 * s, 3 * s);
-    
-    // Blood pool
-    graphics.fillStyle(0x8b0000, 0.7);
-    graphics.fillEllipse(5 * s, 5 * s, 20 * s, 10 * s);
+    graphics.fillEllipse(ox + 14 * s, oy - 6 * s, 10 * s, 5 * s);
+    graphics.fillEllipse(ox + 22 * s, oy - 10 * s, 6 * s, 4 * s);
+    graphics.fillEllipse(ox + 22 * s, oy - 2 * s, 6 * s, 4 * s);
 }
 
 // Funny task names for the island theme

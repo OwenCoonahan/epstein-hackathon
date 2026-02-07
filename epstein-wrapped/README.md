@@ -1,125 +1,136 @@
-# Epstein Wrapped 2025
+# Epstein Wrapped 2025 — V2 Unhinged Edition
 
-A satirical, Spotify Wrapped-style interactive experience based on publicly available court documents, flight logs, and news reports about Jeffrey Epstein.
+A Spotify Wrapped-style interactive experience based on public court documents, flight logs, and DOJ releases. Dark satirical content that exposes the absurdity of how many powerful people were connected to Epstein and how few faced consequences.
 
-![Preview](preview.png)
+## ⚠️ Content Warning
+This project contains references to child exploitation, trafficking, and abuse. It's satire meant to highlight systemic failures, not to minimize victims' experiences.
 
-## 🎯 What This Is
+## 🔥 V2 New Features
 
-A dark humor parody of Spotify's annual "Wrapped" feature, presenting documented statistics from the Epstein case in the familiar card-based, mobile-first format.
+### 1. Dark Stats (The Uncomfortable Stuff)
+- **Youngest victim ages** from court documents (14 documented, 12 alleged)
+- **Average victim age range** (14-16) from FBI investigation
+- **Recruitment pyramid scheme** breakdown ($200-300 per "massage", $200 bonus to recruit friends)
+- **FBI confirmed minor count** (36+ victims in "Operation Leap Year")
+- All sourced from DOJ releases, Palm Beach Police affidavits, and Miami Herald investigation
 
-**This is satire with a purpose:** While the format is comedic, the underlying data comes from real court documents and represents real crimes with real victims.
+### 2. Photos of Associates
+Real public domain/Wikimedia Commons photos of:
+- **Ghislaine Maxwell** (convicted)
+- **Bill Clinton** (26+ flights)
+- **Donald Trump** ("terrific guy" quote)
+- **Prince Andrew** (£12M settlement)
+- **Bill Gates** (post-conviction meetings)
+- **Alan Dershowitz** (named in docs)
+- **Kevin Spacey** (Africa trip)
+- **Les Wexner** ($46M+ townhouse gift)
 
-## 🚀 Running Locally
+### 3. Background Music
+- **Ironically upbeat/goofy music** for dark comedic contrast
+- Auto-plays on first tap
+- Fallback to Web Audio API generated happy tune if MP3 not found
+- Toggle button in top-right corner
 
-```bash
-# Simple static server
-cd epstein-wrapped
-python3 -m http.server 8080
-# or
-npx serve .
-```
+### 4. Extra Stats
+- **Purchases**: Both islands ($30.5M total), Manhattan mansion ($56M), Zorro Ranch (7,500 acres)
+- **Finances**: $1.9B in wire transfers, 4% effective tax rate
+- **The "Suicide"**: 2025 CCTV footage found modified, 3 minutes missing
+- **Black Book**: 1,971 names, 221 pages
 
-Then open `http://localhost:8080`
+### 5. Funnier/Unhinged Elements
+- "Your Personality Type: Didn't Kill Himself"
+- "Your Aura: Blackmail Energy ✨"
+- Personality traits: "Networking enthusiast", "Island collector", "Amateur videographer"
+- "Some of them are reading this right now 👋"
+- Police quote about victims all telling the same story
 
-## 📱 Features
+### 6. Polish
+- Smoother CSS animations with cubic-bezier easing
+- Better slide transitions with scale effects
+- Shimmer effect on gold text
+- Staggered card animations
+- Glitch effect on "Epstein didn't kill himself"
+- Aura glow pulse animation
 
-- **Mobile-first design** (portrait mode optimized)
-- **Spotify Wrapped-style animations** (slide transitions, counter animations, reveal effects)
-- **Tap/swipe navigation** with keyboard support
-- **Progress dots** showing position
-- **Shareable** via Web Share API
-- **Sinister color palette** (dark purples, black, gold)
-
-## 📊 Data Sources
-
-All statistics are derived from publicly available sources:
-
-### Flight Logs
-- **Source:** Court-released flight logs from Epstein's pilots
-- **Coverage:** 1997-2005 (partial records)
-- **Document:** Obtained via FOIA requests and court proceedings
-- **Reference:** [Gawker 2015 release](https://gawker.com/flight-logs-put-clinton-dershowitz-on-pedophile-billionaires-sex-jet-1681039971), [Court Document 1032](https://www.courtlistener.com/docket/4355835/giuffre-v-maxwell/)
-
-### Little St. James Island
-- **Source:** USVI property records, court filings
-- **Size:** 71.5 acres (confirmed via property records)
-- **Purchase:** 1998 for approximately $8M
-
-### Financial Information
-- **Net Worth:** Various estimates, primarily from court filings and journalism
-- **Manhattan Mansion:** 9 E 71st St, valued ~$56M
-- **Wexner connection:** Documented in New York Times investigation
-
-### Black Book
-- **Source:** Leaked contact book obtained by Gawker (2015)
-- **Pages:** 221 pages of names and contact information
-- **Names:** Approximately 1,971 entries
-
-### Celebrity Flight Records
-- **Bill Clinton:** Confirmed 26+ flights in released logs
-- **Prince Andrew:** Confirmed via photographs, testimony
-- **Others:** Various levels of documentation in flight logs
-
-### Legal Timeline
-- **2005:** Palm Beach Police investigation begins
-- **2008:** Controversial plea deal with federal prosecutors
-- **2019:** Re-arrested by SDNY, died in custody August 10
-
-### Victim Count
-- **Source:** Court proceedings, victim compensation fund
-- **Estimate:** ~200 victims identified through various legal proceedings
-
-## ⚠️ Important Disclaimers
-
-1. **Presence ≠ Knowledge:** Being in flight logs or the black book does not imply knowledge of or participation in crimes.
-
-2. **Satire with purpose:** This project uses humor to maintain public attention on an important case where many powerful people avoided accountability.
-
-3. **Real victims:** Behind the memes are real survivors. The project includes a slide acknowledging this and linking to RAINN.org.
-
-## 🎵 Audio
-
-Place a background music file at `audio/bg-music.mp3`. Suggestions:
-- Royalty-free dark ambient
-- Comedic instrumental
-- Something appropriately ominous
-
-Audio is optional and will gracefully fail if not present.
-
-## 🛠️ Tech Stack
-
-- Vanilla HTML/CSS/JS (no frameworks)
-- CSS animations (no JS animation libraries)
-- Web Share API for native sharing
-- Touch/swipe gesture support
-
-## 📁 Structure
+## 📁 Project Structure
 
 ```
 epstein-wrapped/
-├── index.html      # Main HTML with all slides
-├── styles.css      # Spotify Wrapped-style CSS
-├── app.js          # Navigation and animations
-├── audio/          # Background music (add your own)
-│   └── bg-music.mp3
+├── index.html      # Main HTML with 19 slides
+├── styles.css      # Enhanced Spotify-style CSS
+├── app.js          # Interactive logic + Web Audio fallback
+├── data.js         # All sourced data with citations
+├── audio/
+│   ├── README.md   # Instructions for adding music
+│   └── happy-ukulele.mp3  # (optional) Royalty-free track
 └── README.md       # This file
 ```
 
-## 📖 Further Reading
+## 🎵 Adding Music
 
-- [Miami Herald: Perversion of Justice](https://www.miamiherald.com/topics/jeffrey-epstein)
-- [Court Documents (PACER)](https://www.courtlistener.com/docket/4355835/giuffre-v-maxwell/)
-- [Netflix: Jeffrey Epstein: Filthy Rich](https://www.netflix.com/title/80224905)
+See `audio/README.md` for instructions on adding royalty-free happy ukulele music for maximum ironic effect. Without the MP3, the app falls back to a generated cheerful melody.
 
-## 🤝 Contributing
+## 📊 Data Sources
 
-This is a hackathon project. Feel free to fork and improve.
+All data is from publicly available sources:
+- Court documents (PACER, CourtListener)
+- FOIA-released flight logs (Gawker 2015 release)
+- DOJ press releases and indictments (SDNY 2019)
+- Miami Herald investigation (Julie K. Brown)
+- Wikipedia (compiled from court documents)
+- Palm Beach Police affidavits (2005-2006)
+- Victim compensation fund records
+- Property records (USVI, NYC, FL)
 
-## ⚖️ Legal
+## 🚀 Usage
 
-This is a satirical/educational project using publicly available information. All data cited comes from court documents, journalistic investigations, or FOIA-released records.
+```bash
+# Serve locally
+npx serve .
+
+# Or with Python
+python -m http.server 8000
+
+# Or just open index.html in a browser
+```
+
+## 📱 Controls
+
+- **Tap/Click right side** → Next slide
+- **Tap/Click left side** → Previous slide
+- **Swipe left** → Next slide
+- **Swipe right** → Previous slide
+- **Arrow keys** → Navigate
+- **Space** → Next slide
+- **M key** → Toggle music
+- **🔊 button** → Toggle music
+
+## 🎨 Slide Overview
+
+1. **Intro** - "Your 2025 Wrapped... but make it criminal"
+2. **Flight Count** - 1,036 documented flights
+3. **The Plane** - "Lolita Express" Boeing 727
+4. **Top Destinations** - Including "Pedophile Island"
+5. **Dark Stats** - Victim ages, youngest documented
+6. **Recruitment** - Pyramid scheme breakdown
+7. **Island Stats** - Little St. James details
+8. **Collaborators Intro** - "The part everyone's waiting for"
+9. **Inner Circle** - Maxwell, Kellen, Marcinkova with photos
+10. **Celebrity Photos 1** - Clinton, Trump, Andrew, Gates
+11. **Celebrity Photos 2** - Dershowitz, Spacey, Wexner
+12. **Personality Type** - "Didn't Kill Himself"
+13. **Your Aura** - "Blackmail Energy"
+14. **Finances** - $577M net worth, unknown source
+15. **The "Suicide"** - Suspicious circumstances
+16. **Black Book** - 1,971 names
+17. **Victims** - 1,000+ total, $121M compensation
+18. **Final Stats** - Summary
+19. **Share** - Share button
+
+## 📜 License
+
+This is satire based on public records. All images are from Wikimedia Commons (public domain or CC licensed). Created for awareness, not entertainment.
 
 ---
 
-*"Those who cannot remember the past are condemned to repeat it."* — George Santayana
+*"This 'Wrapped' is satire, but the crimes were real. The survivors deserve justice, not just memes."*
