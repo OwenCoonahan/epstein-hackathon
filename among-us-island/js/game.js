@@ -974,12 +974,22 @@ class AmongUsGame {
             `;
         }
         
+        // Add click to dismiss text
+        const clickText = document.createElement('p');
+        clickText.style.cssText = 'color: #666; margin-top: 20px; font-size: 0.9em;';
+        clickText.textContent = 'Click anywhere to start';
+        panel.appendChild(clickText);
+        
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         
+        // Click to dismiss immediately
+        overlay.addEventListener('click', () => overlay.remove());
+        
+        // Auto dismiss after 1.5 seconds
         setTimeout(() => {
-            overlay.remove();
-        }, 3000);
+            if (overlay.parentNode) overlay.remove();
+        }, 1500);
     }
     
     showMessage(text, color = '#ffffff') {
