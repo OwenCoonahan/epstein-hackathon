@@ -3,508 +3,371 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Epstein Wrapped 2025</title>
-    
-    <!-- SEO & Social -->
-    <meta name="description" content="Your 2025 Wrapped... but make it criminal. An interactive experience based on public court documents.">
-    <meta name="theme-color" content="#1a0a2e">
-    
-    <!-- Open Graph -->
-    <meta property="og:title" content="Epstein Wrapped 2025">
-    <meta property="og:description" content="Your year in review... but make it criminal. See the stats from the flight logs.">
-    <meta property="og:type" content="website">
-    <meta property="og:image" content="og-image.png">
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Epstein Wrapped 2025">
-    <meta name="twitter:description" content="Your year in review... but make it criminal.">
-    <meta name="twitter:image" content="og-image.png">
-    
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👁️</text></svg>">
+    <title>Epstein Wrapped 2024</title>
+    <meta name="description" content="The year in review. Based on public court documents and flight logs.">
+    <meta name="theme-color" content="#000000">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23000'/></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Circular+Std:wght@400;700;900&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="app">
-        <!-- Audio controls -->
-        <button class="audio-toggle" id="audioToggle" aria-label="Toggle music">
-            <span class="audio-on">🔊</span>
-            <span class="audio-off">🔇</span>
-        </button>
-
-        <!-- Progress dots -->
-        <div class="progress-container">
-            <div class="progress-dots"></div>
+        <!-- Volume Control -->
+        <div class="volume-control" id="volumeControl">
+            <button class="volume-btn" id="volumeBtn">
+                <svg class="volume-icon on" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <svg class="volume-icon off" viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+            </button>
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="30">
         </div>
 
-        <!-- Slides container -->
-        <div class="slides-container">
-            <!-- Slide 0: Intro -->
-            <div class="slide active" data-slide="0" data-bg="intro">
-                <div class="slide-content intro-slide">
-                    <div class="intro-logo">
-                        <div class="logo-icon">👁️</div>
-                    </div>
-                    <h1 class="intro-title">Your 2025</h1>
-                    <h1 class="intro-title delayed">Wrapped</h1>
-                    <p class="intro-subtitle">A year in review...<br>but make it criminal</p>
-                    <div class="tap-hint">
-                        <span>Tap to start (music will play)</span>
-                        <div class="tap-icon">👆</div>
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <!-- Slides -->
+        <div class="slides-container" id="slidesContainer">
+            
+            <!-- Slide 0: Title -->
+            <div class="slide active" data-slide="0">
+                <div class="slide-bg" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/4/4f/NYC_wbread_background_image.jpg')"></div>
+                <div class="slide-overlay dark"></div>
+                <div class="slide-content centered">
+                    <p class="pre-title">YOUR 2024</p>
+                    <h1 class="main-title">WRAPPED</h1>
+                    <p class="subtitle">Based on public court documents</p>
+                    <div class="tap-start">Tap to begin</div>
+                </div>
+            </div>
+
+            <!-- Slide 1: Mugshot -->
+            <div class="slide" data-slide="1">
+                <div class="slide-bg mugshot-bg"></div>
+                <div class="slide-overlay gradient-bottom"></div>
+                <div class="slide-content bottom-aligned">
+                    <p class="stat-label">JEFFREY EDWARD EPSTEIN</p>
+                    <p class="stat-sublabel">1953 - 2019</p>
+                    <div class="stat-detail">Financier. Child sex offender. Human trafficker.</div>
+                </div>
+            </div>
+
+            <!-- Slide 2: Victims -->
+            <div class="slide" data-slide="2">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">CONFIRMED VICTIMS</p>
+                    <h1 class="giant-stat">1,000+</h1>
+                    <p class="stat-context">According to victim compensation fund claims</p>
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="stat-num">36</span>
+                            <span class="stat-desc">FBI confirmed minors</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num">14</span>
+                            <span class="stat-desc">Youngest documented</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Slide 1: Total Flights -->
-            <div class="slide" data-slide="1" data-bg="purple">
-                <div class="slide-content">
-                    <p class="stat-intro">Between 1997 and 2005, Jeffrey took to the skies on his private Boeing 727...</p>
-                    <div class="big-stat">
-                        <span class="stat-number" data-count="1036">0</span>
-                        <span class="stat-label">documented flights</span>
+            <!-- Slide 3: The Island -->
+            <div class="slide" data-slide="3">
+                <div class="slide-bg island-bg"></div>
+                <div class="slide-overlay gradient-bottom"></div>
+                <div class="slide-content bottom-aligned">
+                    <p class="stat-label">LITTLE ST. JAMES ISLAND</p>
+                    <h2 class="location-name">U.S. Virgin Islands</h2>
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="stat-num">71.5</span>
+                            <span class="stat-desc">acres</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num">$8M</span>
+                            <span class="stat-desc">purchased 1998</span>
+                        </div>
                     </div>
-                    <p class="stat-footnote">And those are just the ones they wrote down 📝</p>
                 </div>
             </div>
 
-            <!-- Slide 2: The Plane -->
-            <div class="slide" data-slide="2" data-bg="dark">
-                <div class="slide-content">
-                    <p class="stat-intro">His ride of choice?</p>
-                    <div class="plane-reveal">
-                        <div class="plane-emoji">✈️</div>
-                        <h2 class="plane-name">The "Lolita Express"</h2>
-                        <p class="plane-model">Boeing 727-31</p>
-                        <p class="plane-tail">Tail Number: N908JE</p>
-                    </div>
-                    <p class="stat-footnote">Yes, they actually called it that. Out loud. To people.</p>
+            <!-- Slide 4: The Plane -->
+            <div class="slide" data-slide="4">
+                <div class="slide-bg plane-bg"></div>
+                <div class="slide-overlay gradient-bottom"></div>
+                <div class="slide-content bottom-aligned">
+                    <p class="stat-label">THE AIRCRAFT</p>
+                    <h2 class="location-name">Boeing 727-31</h2>
+                    <p class="stat-sublabel">Tail Number: N908JE</p>
+                    <p class="stat-context">Nicknamed "The Lolita Express"</p>
                 </div>
             </div>
 
-            <!-- Slide 3: Top Destinations -->
-            <div class="slide" data-slide="3" data-bg="gradient1">
-                <div class="slide-content">
-                    <h2 class="section-title">Your Top Destinations ✈️</h2>
+            <!-- Slide 5: Flight Stats -->
+            <div class="slide" data-slide="5">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">DOCUMENTED FLIGHTS</p>
+                    <h1 class="giant-stat" data-count="1036">0</h1>
+                    <p class="stat-context">Between 1997 and 2005</p>
+                    <p class="stat-footnote">Only the ones that were logged</p>
+                </div>
+            </div>
+
+            <!-- Slide 6: Top Destinations -->
+            <div class="slide" data-slide="6">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">TOP DESTINATIONS</p>
                     <div class="destination-list">
-                        <div class="destination-item" style="--delay: 0.1s">
+                        <div class="dest-row">
                             <span class="dest-rank">1</span>
-                            <span class="dest-name">🏝️ "Pedophile Island"</span>
-                            <span class="dest-count">173 trips</span>
+                            <span class="dest-name">Little St. James</span>
+                            <span class="dest-trips">173 trips</span>
                         </div>
-                        <div class="destination-item" style="--delay: 0.2s">
+                        <div class="dest-row">
                             <span class="dest-rank">2</span>
-                            <span class="dest-name">🗽 Teterboro, NJ</span>
-                            <span class="dest-count">152 trips</span>
+                            <span class="dest-name">Teterboro, NJ</span>
+                            <span class="dest-trips">152 trips</span>
                         </div>
-                        <div class="destination-item" style="--delay: 0.3s">
+                        <div class="dest-row">
                             <span class="dest-rank">3</span>
-                            <span class="dest-name">🌴 Palm Beach, FL</span>
-                            <span class="dest-count">139 trips</span>
+                            <span class="dest-name">Palm Beach, FL</span>
+                            <span class="dest-trips">139 trips</span>
                         </div>
-                        <div class="destination-item" style="--delay: 0.4s">
+                        <div class="dest-row">
                             <span class="dest-rank">4</span>
-                            <span class="dest-name">🇫🇷 Paris, France</span>
-                            <span class="dest-count">52 trips</span>
+                            <span class="dest-name">Paris, France</span>
+                            <span class="dest-trips">52 trips</span>
                         </div>
-                        <div class="destination-item" style="--delay: 0.5s">
+                        <div class="dest-row">
                             <span class="dest-rank">5</span>
-                            <span class="dest-name">🇬🇧 London, UK</span>
-                            <span class="dest-count">38 trips</span>
+                            <span class="dest-name">London, UK</span>
+                            <span class="dest-trips">38 trips</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Slide 4: DARK STATS - Victim Ages -->
-            <div class="slide" data-slide="4" data-bg="blood-dark">
-                <div class="slide-content">
-                    <p class="stat-intro">Now for the part that makes this not funny...</p>
-                    <div class="dark-stats">
-                        <div class="dark-stat-row">
-                            <span class="dark-label">Youngest documented victim:</span>
-                            <span class="dark-value">14 years old</span>
-                        </div>
-                        <div class="dark-stat-row">
-                            <span class="dark-label">Youngest alleged:</span>
-                            <span class="dark-value">12 (triplets from France)</span>
-                        </div>
-                        <div class="dark-stat-row">
-                            <span class="dark-label">Average victim age:</span>
-                            <span class="dark-value">14-16</span>
-                        </div>
-                        <div class="dark-stat-row">
-                            <span class="dark-label">FBI confirmed minors:</span>
-                            <span class="dark-value">36+</span>
-                        </div>
-                    </div>
-                    <p class="source-note">Sources: Palm Beach Police, FBI "Operation Leap Year", DOJ</p>
+            <!-- Slide 7: Properties -->
+            <div class="slide" data-slide="7">
+                <div class="slide-bg mansion-bg"></div>
+                <div class="slide-overlay gradient-bottom"></div>
+                <div class="slide-content bottom-aligned">
+                    <p class="stat-label">9 EAST 71ST STREET</p>
+                    <h2 class="location-name">Manhattan</h2>
+                    <p class="stat-context">Largest private residence in Manhattan. Gift from Les Wexner.</p>
+                    <p class="stat-value">$56,000,000</p>
                 </div>
             </div>
 
-            <!-- Slide 5: Recruitment Stats -->
-            <div class="slide" data-slide="5" data-bg="pyramid">
-                <div class="slide-content">
-                    <h2 class="section-title">The Recruitment Model 📊</h2>
-                    <p class="stat-intro">It was literally a pyramid scheme, but for abuse</p>
-                    <div class="recruitment-stats">
-                        <div class="recruit-item">
-                            <span class="recruit-icon">💵</span>
-                            <span class="recruit-text">$200-300 for a "massage"</span>
-                        </div>
-                        <div class="recruit-item">
-                            <span class="recruit-icon">👥</span>
-                            <span class="recruit-text">$200 bonus to recruit a friend</span>
-                        </div>
-                        <div class="recruit-item">
-                            <span class="recruit-icon">🏫</span>
-                            <span class="recruit-text">Targeted Palm Beach high schools</span>
-                        </div>
-                        <div class="recruit-item">
-                            <span class="recruit-icon">👙</span>
-                            <span class="recruit-text">Used Victoria's Secret as cover</span>
-                        </div>
-                    </div>
-                    <p class="police-quote">"This was 50-something 'shes' and one 'he'—and the 'shes' all basically told the same story."<br>— Palm Beach Police Chief</p>
-                </div>
-            </div>
-
-            <!-- Slide 6: Private Island Stats -->
-            <div class="slide" data-slide="6" data-bg="island">
-                <div class="slide-content">
-                    <p class="stat-intro">About that island...</p>
-                    <div class="island-stats">
-                        <div class="island-name">
-                            <span class="island-emoji">🏝️</span>
-                            <h2>Little St. James</h2>
-                            <p class="island-nickname">"Pedophile Island" (their words, not ours)</p>
-                        </div>
-                        <div class="island-details">
-                            <div class="island-stat">
-                                <span class="value">71.5</span>
-                                <span class="unit">acres</span>
-                            </div>
-                            <div class="island-stat">
-                                <span class="value">$8M</span>
-                                <span class="unit">1998 price</span>
-                            </div>
-                            <div class="island-stat">
-                                <span class="value">2</span>
-                                <span class="unit">islands owned</span>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="stat-footnote">Also owned Great St. James (165 acres, $22.5M) because one wasn't enough</p>
-                </div>
-            </div>
-
-            <!-- Slide 7: Top Collaborators Intro -->
-            <div class="slide" data-slide="7" data-bg="collab-intro">
-                <div class="slide-content center-content">
-                    <p class="stat-intro">Now for the part everyone's been waiting for...</p>
-                    <h1 class="reveal-title">Your Top<br>Collaborators</h1>
-                    <p class="disclaimer">*With photos! Because they're all public figures!</p>
-                </div>
-            </div>
-
-            <!-- Slide 8: Top Collaborators - Inner Circle -->
-            <div class="slide" data-slide="8" data-bg="gradient2">
-                <div class="slide-content">
-                    <h2 class="section-title">The Inner Circle 👥</h2>
-                    <div class="collab-list with-photos">
-                        <div class="collab-item" style="--delay: 0.1s">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Ghislaine_Maxwell_%28cropped%29.jpg/440px-Ghislaine_Maxwell_%28cropped%29.jpg" alt="Ghislaine Maxwell" class="collab-photo">
-                            <div class="collab-info">
-                                <span class="collab-name">Ghislaine Maxwell</span>
-                                <span class="collab-role">Co-pilot (convicted 2021)</span>
-                            </div>
-                            <span class="collab-flights">352 flights</span>
-                        </div>
-                        <div class="collab-item" style="--delay: 0.2s">
-                            <div class="collab-photo placeholder">SK</div>
-                            <div class="collab-info">
-                                <span class="collab-name">Sarah Kellen</span>
-                                <span class="collab-role">"Scheduler" (never charged)</span>
-                            </div>
-                            <span class="collab-flights">181 flights</span>
-                        </div>
-                        <div class="collab-item" style="--delay: 0.3s">
-                            <div class="collab-photo placeholder">NM</div>
-                            <div class="collab-info">
-                                <span class="collab-name">Nadia Marcinkova</span>
-                                <span class="collab-role">"Personal pilot"</span>
-                            </div>
-                            <span class="collab-flights">127 flights</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Slide 9: Celebrity Collaborators with Photos -->
-            <div class="slide" data-slide="9" data-bg="celebrity">
-                <div class="slide-content">
-                    <h2 class="section-title">Notable Appearances 📸</h2>
-                    <div class="celeb-grid with-photos">
-                        <div class="celeb-card">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Bill_Clinton.jpg/440px-Bill_Clinton.jpg" alt="Bill Clinton" class="celeb-photo">
-                            <span class="celeb-name">Bill Clinton</span>
-                            <span class="celeb-stat">26+ flights</span>
-                        </div>
-                        <div class="celeb-card">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Donald_Trump_official_portrait.jpg/440px-Donald_Trump_official_portrait.jpg" alt="Donald Trump" class="celeb-photo">
-                            <span class="celeb-name">Donald Trump</span>
-                            <span class="celeb-stat">"Terrific guy"</span>
-                        </div>
-                        <div class="celeb-card">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Prince_Andrew_August_2014_%28cropped%29.jpg/440px-Prince_Andrew_August_2014_%28cropped%29.jpg" alt="Prince Andrew" class="celeb-photo">
-                            <span class="celeb-name">Prince Andrew</span>
-                            <span class="celeb-stat">£12M settlement</span>
-                        </div>
-                        <div class="celeb-card">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a8/Bill_Gates_2017_%28cropped%29.jpg/440px-Bill_Gates_2017_%28cropped%29.jpg" alt="Bill Gates" class="celeb-photo">
-                            <span class="celeb-name">Bill Gates</span>
-                            <span class="celeb-stat">Post-conviction</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Slide 10: More Celebrities -->
-            <div class="slide" data-slide="10" data-bg="celebrity-2">
-                <div class="slide-content">
-                    <h2 class="section-title">More Friends 👀</h2>
-                    <div class="celeb-grid with-photos">
-                        <div class="celeb-card">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Alan_Dershowitz_2009.jpg/440px-Alan_Dershowitz_2009.jpg" alt="Alan Dershowitz" class="celeb-photo">
-                            <span class="celeb-name">Dershowitz</span>
-                            <span class="celeb-stat">Named in docs</span>
-                        </div>
-                        <div class="celeb-card">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Kevin_Spacey%2C_May_2013.jpg/440px-Kevin_Spacey%2C_May_2013.jpg" alt="Kevin Spacey" class="celeb-photo">
-                            <span class="celeb-name">Kevin Spacey</span>
-                            <span class="celeb-stat">Africa trip</span>
-                        </div>
-                        <div class="celeb-card">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Les_Wexner.jpg/440px-Les_Wexner.jpg" alt="Les Wexner" class="celeb-photo">
-                            <span class="celeb-name">Les Wexner</span>
-                            <span class="celeb-stat">$46M gift</span>
-                        </div>
-                        <div class="celeb-card">
-                            <div class="celeb-photo placeholder">📓</div>
-                            <span class="celeb-name">1,968 more</span>
-                            <span class="celeb-stat">in black book</span>
-                        </div>
-                    </div>
-                    <p class="disclaimer">*Flight presence ≠ knowledge of crimes</p>
-                </div>
-            </div>
-
-            <!-- Slide 11: Your Personality -->
-            <div class="slide" data-slide="11" data-bg="personality">
-                <div class="slide-content center-content">
-                    <h2 class="section-title">Your Personality Type</h2>
-                    <div class="personality-reveal">
-                        <div class="personality-icon">🎭</div>
-                        <h1 class="personality-type">Didn't Kill Himself</h1>
-                        <div class="personality-traits">
-                            <span class="trait">Networking enthusiast</span>
-                            <span class="trait">Island collector</span>
-                            <span class="trait">Tax optimization expert</span>
-                            <span class="trait">Amateur videographer</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Slide 12: Your Aura -->
-            <div class="slide" data-slide="12" data-bg="aura">
-                <div class="slide-content center-content">
-                    <p class="stat-intro">Your 2025 Aura is...</p>
-                    <div class="aura-reveal">
-                        <div class="aura-glow"></div>
-                        <h1 class="aura-text">Blackmail Energy ✨</h1>
-                    </div>
-                    <div class="aura-stats">
-                        <p>Hidden cameras in every room? ✅</p>
-                        <p>DVDs labeled "young [name]"? ✅</p>
-                        <p>Friends with everyone powerful? ✅</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Slide 13: Financial Stats -->
-            <div class="slide" data-slide="13" data-bg="money">
-                <div class="slide-content">
-                    <p class="stat-intro">Let's talk money...</p>
-                    <div class="money-stats">
+            <!-- Slide 8: The Money -->
+            <div class="slide" data-slide="8">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">THE MONEY</p>
+                    <div class="money-grid">
                         <div class="money-item">
-                            <span class="money-label">Net Worth</span>
                             <span class="money-value">$577M</span>
+                            <span class="money-label">Net Worth</span>
                         </div>
                         <div class="money-item">
-                            <span class="money-label">From Wexner alone</span>
-                            <span class="money-value">$200M+</span>
-                        </div>
-                        <div class="money-item">
-                            <span class="money-label">Wire transfers (4 banks)</span>
                             <span class="money-value">$1.9B</span>
+                            <span class="money-label">Wire Transfers</span>
                         </div>
                         <div class="money-item">
-                            <span class="money-label">Effective tax rate</span>
+                            <span class="money-value">$200M</span>
+                            <span class="money-label">From Wexner</span>
+                        </div>
+                        <div class="money-item">
                             <span class="money-value">4%</span>
+                            <span class="money-label">Tax Rate</span>
                         </div>
-                        <div class="money-item">
-                            <span class="money-label">Actual job</span>
-                            <span class="money-value">¯\_(ツ)_/¯</span>
+                    </div>
+                    <p class="stat-footnote">Top marginal rate was 38.5%</p>
+                </div>
+            </div>
+
+            <!-- Slide 9: Ghislaine -->
+            <div class="slide" data-slide="9">
+                <div class="slide-bg maxwell-bg"></div>
+                <div class="slide-overlay gradient-bottom"></div>
+                <div class="slide-content bottom-aligned">
+                    <p class="stat-label">TOP COLLABORATOR</p>
+                    <h2 class="location-name">Ghislaine Maxwell</h2>
+                    <div class="stat-row">
+                        <div class="stat-item">
+                            <span class="stat-num">352</span>
+                            <span class="stat-desc">documented flights</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-num">20</span>
+                            <span class="stat-desc">years sentenced</span>
+                        </div>
+                    </div>
+                    <p class="stat-context">Convicted 2021. Sex trafficking and conspiracy.</p>
+                </div>
+            </div>
+
+            <!-- Slide 10: The Associates -->
+            <div class="slide" data-slide="10">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">NOTABLE ASSOCIATES</p>
+                    <div class="associates-grid">
+                        <div class="associate-card">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/d/d3/Bill_Clinton.jpg" alt="" class="associate-photo">
+                            <span class="associate-name">Bill Clinton</span>
+                            <span class="associate-stat">26+ flights</span>
+                        </div>
+                        <div class="associate-card">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/56/Donald_Trump_official_portrait.jpg" alt="" class="associate-photo">
+                            <span class="associate-name">Donald Trump</span>
+                            <span class="associate-stat">"Terrific guy"</span>
+                        </div>
+                        <div class="associate-card">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/9/9f/Prince_Andrew_August_2014_%28cropped%29.jpg" alt="" class="associate-photo">
+                            <span class="associate-name">Prince Andrew</span>
+                            <span class="associate-stat">£12M settlement</span>
+                        </div>
+                        <div class="associate-card">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a8/Bill_Gates_2017_%28cropped%29.jpg" alt="" class="associate-photo">
+                            <span class="associate-name">Bill Gates</span>
+                            <span class="associate-stat">Post-conviction</span>
+                        </div>
+                    </div>
+                    <p class="stat-footnote">Flight presence does not imply knowledge of crimes</p>
+                </div>
+            </div>
+
+            <!-- Slide 11: Black Book -->
+            <div class="slide" data-slide="11">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">THE BLACK BOOK</p>
+                    <h1 class="giant-stat" data-count="1971">0</h1>
+                    <p class="stat-context">Names and phone numbers</p>
+                    <p class="stat-sublabel">221 pages. Leaked 2015.</p>
+                </div>
+            </div>
+
+            <!-- Slide 12: The Recruitment -->
+            <div class="slide" data-slide="12">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">THE RECRUITMENT MODEL</p>
+                    <div class="recruit-list">
+                        <div class="recruit-item">
+                            <span class="recruit-amount">$200-300</span>
+                            <span class="recruit-desc">per "massage"</span>
+                        </div>
+                        <div class="recruit-item">
+                            <span class="recruit-amount">$200</span>
+                            <span class="recruit-desc">bonus to recruit a friend</span>
+                        </div>
+                    </div>
+                    <div class="quote-box">
+                        <p class="quote-text">"This was 50-something 'shes' and one 'he' — and the 'shes' all basically told the same story."</p>
+                        <p class="quote-attr">— Palm Beach Police Chief</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 13: The "Suicide" -->
+            <div class="slide" data-slide="13">
+                <div class="slide-bg prison-bg"></div>
+                <div class="slide-overlay dark"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">AUGUST 10, 2019</p>
+                    <h2 class="location-name">Metropolitan Correctional Center</h2>
+                    <div class="death-facts">
+                        <div class="death-fact">Both cameras malfunctioned</div>
+                        <div class="death-fact">Both guards asleep</div>
+                        <div class="death-fact">Suicide watch removed 6 days prior</div>
+                        <div class="death-fact">Cellmate transferred hours before</div>
+                        <div class="death-fact">Hyoid bone broken</div>
+                        <div class="death-fact">2:53 of footage missing</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 14: Accountability -->
+            <div class="slide" data-slide="14">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">TOTAL CONVICTIONS</p>
+                    <h1 class="giant-stat red">1</h1>
+                    <p class="stat-context">Ghislaine Maxwell</p>
+                    <p class="stat-sublabel">Everyone else walked free</p>
+                </div>
+            </div>
+
+            <!-- Slide 15: Victims Compensation -->
+            <div class="slide" data-slide="15">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">VICTIM COMPENSATION FUND</p>
+                    <h1 class="giant-stat">$121M+</h1>
+                    <p class="stat-context">Distributed to 225+ claimants</p>
+                    <div class="resource-link">
+                        <a href="https://www.rainn.org" target="_blank">RAINN.org — Support for Survivors</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slide 16: Summary -->
+            <div class="slide" data-slide="16">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
+                    <p class="stat-label">YOUR 2024 WRAPPED</p>
+                    <div class="summary-grid">
+                        <div class="summary-item">
+                            <span class="summary-num">1,036</span>
+                            <span class="summary-label">Flights</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-num">1,000+</span>
+                            <span class="summary-label">Victims</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-num">$577M</span>
+                            <span class="summary-label">Net Worth</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-num">1</span>
+                            <span class="summary-label">Conviction</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Slide 14: The "Suicide" -->
-            <div class="slide" data-slide="14" data-bg="dark-red">
-                <div class="slide-content">
-                    <p class="stat-intro">About that "suicide"...</p>
-                    <div class="suspicious-stats">
-                        <div class="sus-item">
-                            <span class="sus-icon">📹</span>
-                            <span class="sus-text">Cameras: "Malfunctioned" (both of them)</span>
-                        </div>
-                        <div class="sus-item">
-                            <span class="sus-icon">😴</span>
-                            <span class="sus-text">Guards: "Asleep" (then charged with lying)</span>
-                        </div>
-                        <div class="sus-item">
-                            <span class="sus-icon">📋</span>
-                            <span class="sus-text">Suicide watch: Removed 6 days prior</span>
-                        </div>
-                        <div class="sus-item">
-                            <span class="sus-icon">🦴</span>
-                            <span class="sus-text">Hyoid bone: Broken (strangulation sign)</span>
-                        </div>
-                        <div class="sus-item">
-                            <span class="sus-icon">🎬</span>
-                            <span class="sus-text">2025 footage: 3 minutes "missing"</span>
-                        </div>
-                    </div>
-                    <p class="meme-text">Epstein didn't kill himself</p>
-                </div>
-            </div>
-
-            <!-- Slide 15: Black Book -->
-            <div class="slide" data-slide="15" data-bg="gradient3">
-                <div class="slide-content">
-                    <h2 class="section-title">The Black Book 📓</h2>
-                    <div class="book-stats">
-                        <div class="book-stat">
-                            <span class="book-number" data-count="1971">0</span>
-                            <span class="book-label">names & numbers</span>
-                        </div>
-                        <div class="book-stat">
-                            <span class="book-number">221</span>
-                            <span class="book-label">pages leaked</span>
-                        </div>
-                        <div class="book-stat">
-                            <span class="book-number">∞</span>
-                            <span class="book-label">nervous billionaires</span>
-                        </div>
-                    </div>
-                    <p class="stat-footnote">Some of them are reading this right now 👋</p>
-                </div>
-            </div>
-
-            <!-- Slide 16: Total Victims -->
-            <div class="slide" data-slide="16" data-bg="somber">
-                <div class="slide-content center-content">
-                    <p class="serious-note">Behind the memes, real people.</p>
-                    <div class="victim-stats">
-                        <div class="victim-stat">
-                            <span class="victim-number">1,000+</span>
-                            <span class="victim-label">total victims estimated</span>
-                        </div>
-                        <div class="compensation-stats">
-                            <span class="comp-amount">$121M+</span>
-                            <span class="comp-label">paid from victim fund</span>
-                        </div>
-                    </div>
-                    <p class="victim-message">The satire exists because the justice system failed.<br>Laugh at the absurdity, not the victims.</p>
-                    <a href="https://www.rainn.org" target="_blank" class="resource-link">RAINN.org - Support for Survivors</a>
-                </div>
-            </div>
-
-            <!-- Slide 17: Final Stats -->
-            <div class="slide" data-slide="17" data-bg="finale">
-                <div class="slide-content">
-                    <h2 class="section-title">Your 2025 Wrapped</h2>
-                    <div class="final-grid">
-                        <div class="final-stat">
-                            <span class="final-icon">✈️</span>
-                            <span class="final-value">1,036</span>
-                            <span class="final-label">Flights</span>
-                        </div>
-                        <div class="final-stat">
-                            <span class="final-icon">🏝️</span>
-                            <span class="final-value">$30.5M</span>
-                            <span class="final-label">In islands</span>
-                        </div>
-                        <div class="final-stat">
-                            <span class="final-icon">📓</span>
-                            <span class="final-value">1,971</span>
-                            <span class="final-label">Contacts</span>
-                        </div>
-                        <div class="final-stat">
-                            <span class="final-icon">💰</span>
-                            <span class="final-value">$577M</span>
-                            <span class="final-label">Net worth</span>
-                        </div>
-                        <div class="final-stat full-width">
-                            <span class="final-icon">⚖️</span>
-                            <span class="final-value">1</span>
-                            <span class="final-label">Person convicted (Maxwell)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Slide 18: Share -->
-            <div class="slide" data-slide="18" data-bg="share">
-                <div class="slide-content center-content">
+            <!-- Slide 17: Share -->
+            <div class="slide" data-slide="17">
+                <div class="slide-bg dark-solid"></div>
+                <div class="slide-content centered">
                     <div class="share-card">
-                        <div class="share-logo">👁️</div>
-                        <h2>Epstein Wrapped 2025</h2>
-                        <p>The year in review nobody asked for</p>
+                        <p class="share-title">EPSTEIN WRAPPED</p>
+                        <p class="share-subtitle">2024</p>
                     </div>
                     <div class="share-buttons">
-                        <button class="share-btn" id="shareBtn">
-                            <span>Share</span>
-                        </button>
-                        <button class="share-btn secondary" id="restartBtn">
-                            <span>Watch Again</span>
-                        </button>
+                        <button class="share-btn primary" id="shareBtn">Share</button>
+                        <button class="share-btn secondary" id="restartBtn">Watch Again</button>
                     </div>
-                    <p class="credits">Data from public court documents, flight logs, DOJ, and Wikipedia</p>
-                    <p class="credits">All celebrity photos from Wikimedia Commons</p>
+                    <p class="credits">Data from public court documents, flight logs, DOJ, and Forbes.</p>
                 </div>
             </div>
+
         </div>
 
-        <!-- Tap zones -->
-        <div class="tap-zone tap-left"></div>
-        <div class="tap-zone tap-right"></div>
+        <!-- Tap Zones -->
+        <div class="tap-zone left" id="tapLeft"></div>
+        <div class="tap-zone right" id="tapRight"></div>
     </div>
 
-    <!-- Background Music - Royalty Free Happy/Ironic Music -->
-    <!-- Using placeholder - replace with actual royalty-free track -->
-    <audio id="bgMusic" loop preload="auto">
-        <!-- YouTube Audio Library or other royalty-free sources -->
-        <!-- Suggested tracks: "Happy Ukulele", "Carefree", "Bright Wish" -->
-        <source src="audio/happy-ukulele.mp3" type="audio/mpeg">
-    </audio>
-
-    <script src="data.js"></script>
+    <!-- Audio - Using Web Audio API for generated music -->
     <script src="app.js"></script>
 </body>
 </html>
